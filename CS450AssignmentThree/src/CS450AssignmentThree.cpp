@@ -229,7 +229,7 @@ keyboard( unsigned char key, int x, int y )
 
 int main(int argc, char** argv)
 {
-	string data_filename = "NO_DATA_FILE";
+	string data_filename = "test.scn";
 	string application_info = "CS450AssignmentTwo: ";
 	string *window_title = new string;
 	GLfloat eye_position[] = { 0., 0., 1., 1.};
