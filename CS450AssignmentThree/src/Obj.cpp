@@ -1,5 +1,3 @@
-#include <iostream>
-#include <fstream>
 #include "Obj.h"
 
 using namespace std;
@@ -34,9 +32,10 @@ Obj::Obj()
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
 	param_space_vertex_element_size = 1;
+	model_view = Angel::identity();
 }
 
-Obj::Obj(string in_filename)
+Obj::Obj( string in_filename )
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
@@ -44,6 +43,20 @@ Obj::Obj(string in_filename)
 	filename = in_filename;
 	
 	this->load_from_file(filename);
+	
+	model_view = Angel::identity();
+}
+
+Obj::Obj( string in_filename, mat4 in_model_view )
+{
+	vertex_element_size = 3;
+	texture_coord_element_size = 2;
+	param_space_vertex_element_size = 1;
+	filename = in_filename;
+	
+	this->load_from_file(filename);
+
+	model_view = in_model_view;
 }
 
 int Obj::add_face(GLint vertex_idx, GLint texture_coord_idx, GLint normal_idx)

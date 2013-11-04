@@ -2,6 +2,8 @@
 #define __OBJH__
 #include <vector>
 #include <string>
+#include <iostream>
+#include <fstream>
 #include "Angel.h"
 
 // for reading in and representing Wavefront OBJ files
@@ -11,6 +13,7 @@ public:
 	// constructors & destructors
 	Obj();
 	Obj(std::string filename);
+	Obj(std::string in_filename, mat4 in_model_view);
 	~Obj() {};
 
 	// methods
@@ -29,6 +32,12 @@ public:
 	std::vector<GLint> vertex_indicies;
 	std::vector<GLint> texture_coord_indicies;
 	std::vector<GLint> normal_indicies;
+
+	// Object Transformations
+	mat4 scaleXYZ;
+	mat4 rotateXYZ;
+	mat4 translateXYZ;
+	mat4 model_view;
 
 	// file characteristics / metadata
 	std::string filename;

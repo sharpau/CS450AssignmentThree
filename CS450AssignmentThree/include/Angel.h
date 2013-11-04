@@ -35,9 +35,9 @@
 #  include <OpenGL/OpenGL.h>
 #  include <GLUT/glut.h>
 #else // non-Mac OS X operating systems
-#  include "GL\glew.h"
-#  include "GL\freeglut.h"
-#  include "GL\freeglut_ext.h"
+#  include <GL/glew.h>
+#  include <GL/freeglut.h>
+#  include <GL/freeglut_ext.h>
 #endif  // __APPLE__
 
 // Define a helpful macro for handling offsets into buffer objects

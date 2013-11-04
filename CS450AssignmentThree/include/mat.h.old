@@ -725,7 +725,7 @@ mat4 Frustum( const GLfloat left, const GLfloat right,
     c[2][2] = -(zFar + zNear)/(zFar - zNear);
     c[2][3] = -2.0*zFar*zNear/(zFar - zNear);
     c[3][2] = -1.0;
-    c[3][3] = 0.0; 
+	c[3][3] = 0.0;
     return c;
 }
 
@@ -742,7 +742,7 @@ mat4 Perspective( const GLfloat fovy, const GLfloat aspect,
     c[2][2] = -(zFar + zNear)/(zFar - zNear);
     c[2][3] = -2.0*zFar*zNear/(zFar - zNear);
     c[3][2] = -1.0;
-    c[3][3] = 0.0;
+	c[3][3] = 0.0;
     return c;
 }
 
@@ -771,10 +771,10 @@ mat3 Normal( const mat4& c)
 {
    mat3 d;
    GLfloat det;
-   det = c[0][0]*c[1][1]*c[2][2]+c[0][1]*c[1][2]*c[2][0]
+   det = c[0][0]*c[1][1]*c[2][2]+c[0][1]*c[1][2]*c[2][1]
      -c[2][0]*c[1][1]*c[0][2]-c[1][0]*c[0][1]*c[2][2]-c[0][0]*c[1][2]*c[2][1];
    d[0][0] = (c[1][1]*c[2][2]-c[1][2]*c[2][1])/det;
-   d[0][1] = -(c[1][0]*c[2][1]-c[2][0]*c[1][1])/det;
+   d[0][1] = -(c[0][1]*c[2][2]-c[0][2]*c[2][1])/det;
    d[0][2] = (c[0][1]*c[2][0]-c[2][1]*c[2][2])/det;
    d[1][0] = -(c[0][1]*c[2][2]-c[0][2]*c[2][1])/det;
    d[1][1] = (c[0][0]*c[2][2]-c[0][2]*c[2][0])/det;

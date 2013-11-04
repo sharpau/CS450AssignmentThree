@@ -443,7 +443,6 @@ vec4 normalize( const vec4& v ) {
     return v / length(v);
 }
 
-//RAM :  This seems very wrong...why doesn't it return a vec4?	
 inline
 vec3 cross(const vec4& a, const vec4& b )
 {
@@ -451,14 +450,7 @@ vec3 cross(const vec4& a, const vec4& b )
 		 a.z * b.x - a.x * b.z,
 		 a.x * b.y - a.y * b.x );
 }
-//inline
-//vec4 cross(const vec4& a, const vec4& b )
-//{
-//	return vec4( a.y * b.z - a.z * b.y,
-//		 a.z * b.x - a.x * b.z,
-//		 a.x * b.y - a.y * b.x , 0.0);
-//	}
-	
+
 //----------------------------------------------------------------------------
 
 }  // namespace Angel
