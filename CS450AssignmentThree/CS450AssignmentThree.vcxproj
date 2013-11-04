@@ -23,11 +23,13 @@
     <ClInclude Include="include\mat.h" />
     <ClInclude Include="include\vec.h" />
     <ClInclude Include="src\Obj.h" />
+    <ClInclude Include="src\SceneLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InitShader.cpp" />
     <ClCompile Include="src\CS450AssignmentThree.cpp" />
     <ClCompile Include="src\Obj.cpp" />
+    <ClCompile Include="src\SceneLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\fshader.glsl" />

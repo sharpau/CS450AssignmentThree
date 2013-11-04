@@ -15,8 +15,8 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
-		
 #include "Obj.h"
+#include "SceneLoader.h"
 
 using namespace std;
 // globals
@@ -140,7 +140,7 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 0., 1., 1.0 );
+    point4 light_position( 0., 1.5, 1., 1.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
     color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
 		cerr << "FROM_X, FROM_Y, FROM_Z*: Floats passed to the LookAt function representing the point in the scene of the eye." << endl;
 		cerr << "AT_X, AT_Y, AT_Z*: Floats passed to the LookAt function representing the point in the scene where the eye is looking." << endl;
 		cerr << "UP_X, UP_Y, UP_Z*: Floats passed to the LookAt function representing the vector that describes the up direction within scene for the eye." << endl;
-		cerr << "*These points and vectors will be converted to a homogenous coordinate system." << endl;
+		cerr << "*These points and vectors will not be converted to a homogenous coordinate system." << endl;
 		return -1;
 	}
 	data_filename = argv[1];
@@ -265,24 +265,8 @@ int main(int argc, char** argv)
 	cout << "At position: {" << at_position[0] << ", " << at_position[1] << ", " << at_position[2] << "}" << endl;
 	cout << "Up vector: {" << up_vector[0] << ", " << up_vector[1] << ", " << up_vector[2] << "}" << endl;
 	
-	vector<string> obj_filenames;
-	int scene_load_status = load_scene_by_file(data_filename, obj_filenames);
-    if(scene_load_status == -1)
-	{
-		cerr << "Unable to load file: '" << data_filename << "'" << endl;
-		return -1;
-	}
-	vector<Obj*> obj_object_data;
-	for(auto filename : obj_filenames)
-	{
-		
-		obj_object_data.push_back(new Obj(DATA_DIRECTORY_PATH + filename));
-		if(obj_object_data.back()->bad_file)
-		{
-			cerr << "Unable to load obj files." << endl;
-			return -1;
-		}
-	}
+	SceneLoader *input_scene = new SceneLoader( DATA_DIRECTORY_PATH );
+	input_scene->load_file( data_filename );	
 
 	glutInit(&argc, argv);
 #ifdef __APPLE__
@@ -304,7 +288,7 @@ int main(int argc, char** argv)
     glewInit();
 #endif
 
-    init(obj_object_data, eye_position, at_position, up_vector);
+	init(input_scene->loaded_objs, eye_position, at_position, up_vector);
 
     //NOTE:  callbacks must go after window is created!!!
     glutKeyboardFunc(keyboard);

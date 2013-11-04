@@ -1,3 +1,5 @@
+#ifndef __OBJH__
+#define __OBJH__
 #include <vector>
 #include <string>
 #include "Angel.h"
@@ -38,3 +40,4 @@ public:
 	int texture_coord_element_size;
 	int param_space_vertex_element_size;
 };
+#endif // END __OBJH__
