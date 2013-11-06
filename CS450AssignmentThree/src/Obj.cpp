@@ -59,7 +59,7 @@ Obj::Obj( string in_filename, mat4 in_model_view )
 	model_view = in_model_view;
 }
 
-int Obj::add_face(GLint vertex_idx, GLint texture_coord_idx, GLint normal_idx)
+int Obj::add_face(GLuint vertex_idx, GLuint texture_coord_idx, GLuint normal_idx)
 {
 	// things are indexed starting from 1 instead of 0. this is stupid, so we fix it.
 	this->vertex_indicies.push_back(vertex_idx - 1);
@@ -248,7 +248,6 @@ int Obj::load_from_file(string in_filename)
 			}
 		}
 		
-
 		cout << "Loaded file '" << this->filename << "'" << endl;
 		cout << "# of Verticeis: " << this->vertices.size() / this->vertex_element_size << endl;
 		cout << "# of Normals: " << this->normals.size() / 3 << endl;
