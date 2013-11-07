@@ -247,7 +247,23 @@ int Obj::load_from_file(string in_filename)
 				}
 			}
 		}
-		
+		vector<GLfloat> tmp_verts;
+		vector<GLfloat> tmp_norms;
+
+		for( int k = 0; k < this->vertex_indicies.size(); k++ )
+		{
+			int v_idx = this->vertex_indicies[k];
+			int n_idx = this->normal_indicies[k];
+			
+			tmp_verts.push_back( this->vertices[(v_idx * 3) + 0] );
+			tmp_verts.push_back( this->vertices[(v_idx * 3) + 1] );
+			tmp_verts.push_back( this->vertices[(v_idx * 3) + 2] );
+			
+			tmp_norms.push_back(this->normals[n_idx + 0] );
+			tmp_norms.push_back(this->normals[n_idx + 1] );
+			tmp_norms.push_back(this->normals[n_idx + 2] );
+		}
+
 		cout << "Loaded file '" << this->filename << "'" << endl;
 		cout << "# of Verticeis: " << this->vertices.size() / this->vertex_element_size << endl;
 		cout << "# of Normals: " << this->normals.size() / 3 << endl;

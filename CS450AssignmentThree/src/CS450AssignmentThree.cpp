@@ -68,25 +68,28 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 
 // OpenGL initialization
 GLsizei num_elements;
+GLvoid *tmp_indicies;
 void
 init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
-	GLuint my_vao;
+	GLuint *my_vaos;
 	GLuint *my_vbos;
-	GLsizei num_vbos;
 	GLsizei num_bytes_vertex_data;
 	GLsizei num_bytes_normal_data;
 	GLsizei num_bytes_vert_idx_data;
 	GLint vertex_loc;
 	GLint normal_loc;
 	GLint color_loc;
+	GLint num_vaos;
+	GLint num_vbos;
 
-	num_vbos = obj_data.size() * 4;
-	
+	num_vaos = obj_data.size();
+	num_vbos = obj_data.size() * 3;
+	my_vaos = (GLuint *) malloc( sizeof(GLuint) * num_vaos );
 	my_vbos = (GLuint *) malloc( sizeof(GLuint) * num_vbos );
 	
-	glGenVertexArrays( 1, &my_vao );
-	glBindVertexArray( my_vao );
+	glGenVertexArrays( obj_data.size(), my_vaos );
+	glBindVertexArray( my_vaos[0] );
 	glGenBuffers( num_vbos, my_vbos );
 	
 	// Load shaders and use the resulting shader program
@@ -98,23 +101,22 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
 	glEnableVertexAttribArray( vertex_loc );
 	glEnableVertexAttribArray( normal_loc );
 
-
-	num_bytes_vertex_data = sizeof(GLfloat) * obj_data[0]->vertices.size();
+	
 	num_bytes_vert_idx_data = sizeof(GLint) * obj_data[0]->vertex_indicies.size();
+	num_bytes_vertex_data = sizeof(GLfloat) * obj_data[0]->vertices.size();
 	num_bytes_normal_data = sizeof(GLfloat) * obj_data[0]->normals.size();
-	num_elements = 3;
-	glBindBuffer( GL_ARRAY_BUFFER, my_vbos[0] );
+	num_elements = obj_data[0]->vertex_indicies.size();
+	tmp_indicies = (GLvoid *) obj_data[0]->vertex_indicies.data();
+
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[0] );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, obj_data[0]->vertex_indicies.data(), GL_STATIC_DRAW );
+
+	glBindBuffer( GL_ARRAY_BUFFER, my_vbos[1] );
 	glBufferData( GL_ARRAY_BUFFER, num_bytes_vertex_data, (GLvoid *) obj_data[0]->vertices.data(), GL_STATIC_DRAW );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[1] );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, (GLvoid *) obj_data[0]->vertex_indicies.data(), GL_STATIC_DRAW );
+	glVertexAttribPointer( vertex_loc, obj_data[0]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
 
 	glBindBuffer( GL_ARRAY_BUFFER, my_vbos[2] );
-	glBufferData( GL_ARRAY_BUFFER, num_bytes_normal_data, (GLvoid *) obj_data[0]->normals.data(), GL_STATIC_DRAW );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[3] );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, (GLvoid *) obj_data[0]->normal_indicies.data(), GL_STATIC_DRAW );
-		
-
-	glVertexAttribPointer( vertex_loc, obj_data[0]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
+	glBufferData( GL_ARRAY_BUFFER, num_bytes_normal_data, (GLvoid *) obj_data[0]->normals.data(), GL_STATIC_DRAW );	
 	glVertexAttribPointer( normal_loc, obj_data[0]->normal_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
 		
 	int linked;
