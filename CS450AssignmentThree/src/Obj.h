@@ -25,6 +25,8 @@ public:
 	int add_face(GLuint vertex_idx, GLuint texture_coord_idx = 0, GLuint normal_idx = 0);
 
 	// data
+	std::vector<GLfloat> indexed_vertices;
+	std::vector<GLfloat> indexed_normals;
 	std::vector<GLfloat> vertices;
 	std::vector<GLfloat> param_space_vertices;
 	std::vector<GLfloat> texture_coords;
