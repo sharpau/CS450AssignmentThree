@@ -7,6 +7,14 @@
 #include "Angel.h"
 
 // for reading in and representing Wavefront OBJ files
+struct SOA {
+	std::vector<GLfloat> positions;
+	std::vector<GLfloat> normals;
+	std::vector<GLfloat> colors;
+	GLuint positions_stride;
+	GLuint normals_stride;
+	GLuint colors_stride;
+};
 class Obj
 {
 public:
@@ -18,22 +26,9 @@ public:
 
 	// methods
 	int load_from_file(std::string filename);
-	int add_vertex(GLfloat x, GLfloat y, GLfloat z = 0., GLfloat w = 0.);
-	int add_texture_coord(GLfloat texture_coord_u, GLfloat texture_coord_v, GLfloat texture_coord_w = 0);
-	int add_normal(GLfloat normal_x, GLfloat normal_y, GLfloat normal_z, GLfloat normal_w = 0);
-	int add_param_vertex(GLfloat vertex_u, GLfloat vertex_v = 0, GLfloat vertex_w = 0);
-	int add_face(GLuint vertex_idx, GLuint texture_coord_idx = 0, GLuint normal_idx = 0);
 
 	// data
-	std::vector<GLfloat> indexed_vertices;
-	std::vector<GLfloat> indexed_normals;
-	std::vector<GLfloat> vertices;
-	std::vector<GLfloat> param_space_vertices;
-	std::vector<GLfloat> texture_coords;
-	std::vector<GLfloat> normals;
-	std::vector<GLuint> vertex_indicies;
-	std::vector<GLint> texture_coord_indicies;
-	std::vector<GLuint> normal_indicies;
+	struct SOA data_soa;
 
 	GLuint vao;
 	// Object Transformations
@@ -51,5 +46,21 @@ public:
 	int normal_element_size;
 	int texture_coord_element_size;
 	int param_space_vertex_element_size;
+private:
+	// internal data
+	std::vector<GLfloat> vertices;
+	std::vector<GLfloat> param_space_vertices;
+	std::vector<GLfloat> texture_coords;
+	std::vector<GLfloat> normals;
+	std::vector<GLuint> vertex_indicies;
+	std::vector<GLint> texture_coord_indicies;
+	std::vector<GLuint> normal_indicies;
+
+	//methods
+	int add_vertex(GLfloat x, GLfloat y, GLfloat z = 0., GLfloat w = 0.);
+	int add_texture_coord(GLfloat texture_coord_u, GLfloat texture_coord_v, GLfloat texture_coord_w = 0);
+	int add_normal(GLfloat normal_x, GLfloat normal_y, GLfloat normal_z, GLfloat normal_w = 0);
+	int add_param_vertex(GLfloat vertex_u, GLfloat vertex_v = 0, GLfloat vertex_w = 0);
+	int add_face(GLuint vertex_idx, GLuint texture_coord_idx = 0, GLuint normal_idx = 0);
 };
 #endif // END __OBJH__

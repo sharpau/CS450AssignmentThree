@@ -83,26 +83,26 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
     // Load shaders and use the resulting shader program
     GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
-	
+	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+	GLint normLoc = glGetAttribLocation( program, "vNormal" );
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
 		glBindVertexArray( vaos[i] );
 		obj_data[i]->vao = vaos[i];
+		
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
-		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->indexed_vertices.size();
-		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->indexed_normals.size();
-		GLvoid *vert_data = obj_data[i]->indexed_vertices.data();
-		GLvoid *norm_data = obj_data[i]->indexed_normals.data();
+		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
+		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
+		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
+		GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
 		glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW );
 		glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data );
 		glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data );
-
-		GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+		
 		glEnableVertexAttribArray( vertLoc );
-		glVertexAttribPointer( vertLoc, obj_data[i]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		GLint normLoc = glGetAttribLocation( program, "vNormal" );
+		glVertexAttribPointer( vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
 		glEnableVertexAttribArray( normLoc );
-		glVertexAttribPointer( normLoc, obj_data[i]->normal_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
+		glVertexAttribPointer( normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
 		int linked;
 		glGetProgramiv( program, GL_LINK_STATUS, &linked );
 		if( linked != GL_TRUE )
@@ -115,12 +115,12 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 			cerr << *pLinkInfoLog << endl;
 		}
 
-		num_verts = obj_data[i]->indexed_vertices.size();
+		num_verts = obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride;
 	}
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 1.5, 1.3, 1.0 );
+    point4 light_position( 0., 1.25, 1., 1.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
     color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
@@ -179,7 +179,7 @@ display( void )
 	for( auto obj : obj_data )
 	{
 		glBindVertexArray( obj->vao );
-		glDrawArrays( GL_TRIANGLES, 0, obj->indexed_vertices.size() );
+		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.positions.size() / obj->data_soa.positions_stride );
 	}
     glutSwapBuffers();
 }
