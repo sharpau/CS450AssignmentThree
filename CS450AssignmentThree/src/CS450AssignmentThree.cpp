@@ -67,8 +67,9 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 }
 
 // OpenGL initialization
+vector<Obj*> obj_data;
 void
-init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
+init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
     // Create a vertex array object
     GLuint *vaos;
@@ -86,7 +87,7 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
 		glBindVertexArray( vaos[i] );
-		
+		obj_data[i]->vao = vaos[i];
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->indexed_vertices.size();
 		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->indexed_normals.size();
@@ -98,11 +99,10 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
 
 		GLint vertLoc = glGetAttribLocation( program, "vPosition" );
 		glEnableVertexAttribArray( vertLoc );
-		glVertexAttribPointer( vertLoc, obj_data[i]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, vert_data );
-
+		glVertexAttribPointer( vertLoc, obj_data[i]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
 		GLint normLoc = glGetAttribLocation( program, "vNormal" );
 		glEnableVertexAttribArray( normLoc );
-		glVertexAttribPointer( normLoc, obj_data[i]->normal_element_size, GL_FLOAT, GL_FALSE, 0, norm_data );
+		glVertexAttribPointer( normLoc, obj_data[i]->normal_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
 		int linked;
 		glGetProgramiv( program, GL_LINK_STATUS, &linked );
 		if( linked != GL_TRUE )
@@ -120,7 +120,7 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 1.5, 1., 1.0 );
+    point4 light_position( 0., 1.5, 1.3, 1.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
     color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
@@ -176,8 +176,11 @@ void
 display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glDrawArrays(GL_TRIANGLES, 0, num_verts);
+	for( auto obj : obj_data )
+	{
+		glBindVertexArray( obj->vao );
+		glDrawArrays( GL_TRIANGLES, 0, obj->indexed_vertices.size() );
+	}
     glutSwapBuffers();
 }
 
@@ -246,8 +249,11 @@ int main(int argc, char** argv)
 	cout << "Up vector: {" << up_vector[0] << ", " << up_vector[1] << ", " << up_vector[2] << "}" << endl;
 	
 	SceneLoader *input_scene = new SceneLoader( DATA_DIRECTORY_PATH );
-	input_scene->load_file( data_filename );	
-
+	input_scene->load_file( data_filename );
+	for( auto tmp : input_scene->loaded_objs )
+	{
+		obj_data.push_back(tmp);
+	}
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -268,7 +274,7 @@ int main(int argc, char** argv)
     glewInit();
 #endif
 
-	init(input_scene->loaded_objs, eye_position, at_position, up_vector);
+	init(eye_position, at_position, up_vector);
 
     //NOTE:  callbacks must go after window is created!!!
     glutKeyboardFunc(keyboard);
