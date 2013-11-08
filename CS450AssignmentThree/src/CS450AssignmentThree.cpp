@@ -67,89 +67,42 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 }
 
 // OpenGL initialization
-GLsizei num_elements;
-GLvoid *tmp_indicies;
 void
 init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
-	GLuint *my_vaos;
-	GLuint *my_vbos;
-	GLsizei num_bytes_vertex_data;
-	GLsizei num_bytes_normal_data;
-	GLsizei num_bytes_vert_idx_data;
-	GLint vertex_loc;
-	GLint normal_loc;
-	GLint color_loc;
-	GLint num_vaos;
-	GLint num_vbos;
-
-	num_vaos = obj_data.size();
-	num_vbos = obj_data.size() * 3;
-	my_vaos = (GLuint *) malloc( sizeof(GLuint) * num_vaos );
-	my_vbos = (GLuint *) malloc( sizeof(GLuint) * num_vbos );
+    // Create a vertex array object
+    GLuint *vaos;
+	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
+    glGenVertexArrays( obj_data.size(), vaos );
 	
-	glGenVertexArrays( obj_data.size(), my_vaos );
-	glBindVertexArray( my_vaos[0] );
-	glGenBuffers( num_vbos, my_vbos );
+	GLuint *vbos;
+	vbos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
+	glGenBuffers( obj_data.size(), vbos );
 	
-	// Load shaders and use the resulting shader program
+    // Load shaders and use the resulting shader program
     GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
 	
-	vertex_loc = glGetAttribLocation( program, "vPosition" );
-	normal_loc = glGetAttribLocation( program, "vNormal" );
-	glEnableVertexAttribArray( vertex_loc );
-	glEnableVertexAttribArray( normal_loc );
-
-	
-	num_bytes_vert_idx_data = sizeof(GLint) * obj_data[0]->vertex_indicies.size();
-	num_bytes_vertex_data = sizeof(GLfloat) * obj_data[0]->vertices.size();
-	num_bytes_normal_data = sizeof(GLfloat) * obj_data[0]->normals.size();
-	num_elements = obj_data[0]->vertex_indicies.size();
-	tmp_indicies = (GLvoid *) obj_data[0]->vertex_indicies.data();
-
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[0] );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, obj_data[0]->vertex_indicies.data(), GL_STATIC_DRAW );
-
-	glBindBuffer( GL_ARRAY_BUFFER, my_vbos[1] );
-	glBufferData( GL_ARRAY_BUFFER, num_bytes_vertex_data, (GLvoid *) obj_data[0]->vertices.data(), GL_STATIC_DRAW );
-	glVertexAttribPointer( vertex_loc, obj_data[0]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-
-	glBindBuffer( GL_ARRAY_BUFFER, my_vbos[2] );
-	glBufferData( GL_ARRAY_BUFFER, num_bytes_normal_data, (GLvoid *) obj_data[0]->normals.data(), GL_STATIC_DRAW );	
-	glVertexAttribPointer( normal_loc, obj_data[0]->normal_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		
-	int linked;
-	glGetProgramiv( program, GL_LINK_STATUS, &linked );
-	if( linked != GL_TRUE )
+	for( int i = 0; i < obj_data.size(); i++ )
 	{
-		int maxLength;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
-		maxLength = maxLength + 1;
-		GLchar *pLinkInfoLog = new GLchar[maxLength];
-		glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
-		cerr << *pLinkInfoLog << endl;
-	}
-
-	/*for( int i = 0; i < num_vbos - 3; i += 4 )
-	{
-		num_bytes_vertex_data = sizeof(GLfloat) * obj_data[i]->vertices.size();
-		num_bytes_vert_idx_data = sizeof(GLint) * obj_data[i]->vertex_indicies.size();
-		num_bytes_normal_data = sizeof(GLfloat) * obj_data[i]->normals.size();
-		glBindBuffer( GL_ARRAY_BUFFER, my_vbos[i] );
-		glBufferData( GL_ARRAY_BUFFER, num_bytes_vertex_data, (GLvoid *) obj_data[i]->vertices.data(), GL_STATIC_DRAW );
-		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[i + 1] );
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, (GLvoid *) obj_data[i]->vertex_indicies.data(), GL_STATIC_DRAW );
-
-		glBindBuffer( GL_ARRAY_BUFFER, my_vbos[i + 2] );
-		glBufferData( GL_ARRAY_BUFFER, num_bytes_normal_data, (GLvoid *) obj_data[i]->normals.data(), GL_STATIC_DRAW );
-		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, my_vbos[i + 3] );
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, num_bytes_vert_idx_data, (GLvoid *) obj_data[i]->normal_indicies.data(), GL_STATIC_DRAW );
+		glBindVertexArray( vaos[i] );
 		
+		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
+		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->indexed_vertices.size();
+		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->indexed_normals.size();
+		GLvoid *vert_data = obj_data[i]->indexed_vertices.data();
+		GLvoid *norm_data = obj_data[i]->indexed_normals.data();
+		glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW );
+		glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data );
+		glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data );
 
-		glVertexAttribPointer( vertex_loc, obj_data[i]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		glVertexAttribPointer( normal_loc, obj_data[i]->normal_element_size, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		
+		GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+		glEnableVertexAttribArray( vertLoc );
+		glVertexAttribPointer( vertLoc, obj_data[i]->vertex_element_size, GL_FLOAT, GL_FALSE, 0, vert_data );
+
+		GLint normLoc = glGetAttribLocation( program, "vNormal" );
+		glEnableVertexAttribArray( normLoc );
+		glVertexAttribPointer( normLoc, obj_data[i]->normal_element_size, GL_FLOAT, GL_FALSE, 0, norm_data );
 		int linked;
 		glGetProgramiv( program, GL_LINK_STATUS, &linked );
 		if( linked != GL_TRUE )
@@ -161,11 +114,12 @@ init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3
 			glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
 			cerr << *pLinkInfoLog << endl;
 		}
-	}*/
-	
-    /* Initialize shader lighting parameters
-     RAM: No need to change these...we'll learn about the details when we
-     cover Illumination and Shading*/
+
+		num_verts = obj_data[i]->indexed_vertices.size();
+	}
+    // Initialize shader lighting parameters
+    // RAM: No need to change these...we'll learn about the details when we
+    // cover Illumination and Shading
     point4 light_position( 0., 1.5, 1., 1.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
@@ -223,8 +177,7 @@ display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	//glDrawArrays(GL_TRIANGLES, 0, num_verts);
-	glDrawElements( GL_TRIANGLES, num_elements, GL_UNSIGNED_INT, 0 );
+	glDrawArrays(GL_TRIANGLES, 0, num_verts);
     glutSwapBuffers();
 }
 

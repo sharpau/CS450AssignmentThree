@@ -35,6 +35,7 @@ public:
 	std::vector<GLint> texture_coord_indicies;
 	std::vector<GLuint> normal_indicies;
 
+	GLuint vao;
 	// Object Transformations
 	mat4 scaleXYZ;
 	mat4 rotateXYZ;
