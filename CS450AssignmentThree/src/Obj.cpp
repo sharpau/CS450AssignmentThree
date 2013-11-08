@@ -59,7 +59,7 @@ Obj::Obj( string in_filename, mat4 in_model_view )
 	model_view = in_model_view;
 }
 
-int Obj::add_face(GLint vertex_idx, GLint texture_coord_idx, GLint normal_idx)
+int Obj::add_face(GLuint vertex_idx, GLuint texture_coord_idx, GLuint normal_idx)
 {
 	// things are indexed starting from 1 instead of 0. this is stupid, so we fix it.
 	this->vertex_indicies.push_back(vertex_idx - 1);
@@ -247,12 +247,32 @@ int Obj::load_from_file(string in_filename)
 				}
 			}
 		}
-		
+		for(auto v_idx : this->vertex_indicies)
+		{
+			for(int i = 0; i < this->vertex_element_size; i++) {
+				data_soa.positions.push_back(this->vertices[this->vertex_element_size*v_idx + i]);
+			}
+		}
+		data_soa.positions_stride = this->vertex_element_size;
+		for(auto n_idx : this->normal_indicies)
+		{
+			for(int i = 0; i < this->normal_element_size; i++) {
+				data_soa.normals.push_back(this->normals[this->normal_element_size*n_idx + i]);
+			}
+		}
+		data_soa.normals_stride = this->normal_element_size;
+		this->data_soa.positions.shrink_to_fit();
+		this->data_soa.normals.shrink_to_fit();
+		this->data_soa.colors.shrink_to_fit();
+
+		this->normals.clear();
+		this->normals.shrink_to_fit();
+		this->vertices.clear();
+		this->vertices.shrink_to_fit();
 
 		cout << "Loaded file '" << this->filename << "'" << endl;
-		cout << "# of Verticeis: " << this->vertices.size() / this->vertex_element_size << endl;
-		cout << "# of Normals: " << this->normals.size() / 3 << endl;
-		cout << "# of faces: " << this->vertex_indicies.size() << endl;
+		cout << "# of Vertexes: " << this->data_soa.positions.size() / this->data_soa.positions_stride << endl;
+		cout << "# of Normals: " << this->data_soa.normals.size() / this->data_soa.normals_stride << endl;
 		bad_file = false;
 		status = 0;
 		in_file.close();

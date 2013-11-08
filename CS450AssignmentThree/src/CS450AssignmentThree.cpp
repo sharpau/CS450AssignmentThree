@@ -67,80 +67,60 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 }
 
 // OpenGL initialization
+vector<Obj*> obj_data;
 void
-init(vector<Obj*> obj_data, GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
+init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
     // Create a vertex array object
-    GLuint vao;
-    glGenVertexArrays( 1, &vao );
-    glBindVertexArray( vao );
+    GLuint *vaos;
+	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
+    glGenVertexArrays( obj_data.size(), vaos );
+	
+	GLuint *vbos;
+	vbos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
+	glGenBuffers( obj_data.size(), vbos );
 	
     // Load shaders and use the resulting shader program
     GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
-
-	num_objects = obj_data.size();
-	glGenBuffers(1, &buffer);
-
-	Obj *tmp;
-	vector<GLfloat> vertex_brute_force;
-	vector<GLfloat> normal_brute_force;
-
-	// use these to make sure all elem sizes are the same
-	int max_v_elem_size = 0;
-	int max_n_elem_size = 0;
-	// iterate through and figure out what we have to pad
-	// TODO
-	
-	
-	for(int buff_idx = 0; buff_idx < obj_data.size(); buff_idx++)
+	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+	GLint normLoc = glGetAttribLocation( program, "vNormal" );
+	for( int i = 0; i < obj_data.size(); i++ )
 	{
-		tmp = obj_data[buff_idx];
-
-		for(auto idx : tmp->vertex_indicies)
+		glBindVertexArray( vaos[i] );
+		obj_data[i]->vao = vaos[i];
+		
+		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
+		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
+		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
+		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
+		GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
+		glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW );
+		glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data );
+		glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data );
+		
+		glEnableVertexAttribArray( vertLoc );
+		glVertexAttribPointer( vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
+		glEnableVertexAttribArray( normLoc );
+		glVertexAttribPointer( normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
+		int linked;
+		glGetProgramiv( program, GL_LINK_STATUS, &linked );
+		if( linked != GL_TRUE )
 		{
-			for(int i = 0; i < tmp->vertex_element_size; i++) {
-				vertex_brute_force.push_back(tmp->vertices[tmp->vertex_element_size*idx + i]);
-			}
-		}
-		for(auto n_idx : tmp->normal_indicies)
-		{
-			for(int i = 0; i < tmp->normal_element_size; i++) {
-				normal_brute_force.push_back(tmp->normals[tmp->normal_element_size*n_idx + i]);
-			}
+			int maxLength;
+			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+			maxLength = maxLength + 1;
+			GLchar *pLinkInfoLog = new GLchar[maxLength];
+			glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
+			cerr << *pLinkInfoLog << endl;
 		}
 
+		num_verts = obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride;
 	}
-
-	auto num_bytes_vert_data = sizeof(GLfloat) * vertex_brute_force.size();
-	auto num_bytes_norm_data = sizeof(GLfloat) * normal_brute_force.size();
-	vertex_brute_force.shrink_to_fit();
-	normal_brute_force.shrink_to_fit();
-	num_verts = vertex_brute_force.size() / tmp->vertex_element_size;
-
-		
-	// Create and initialize a buffer object
-	glBindBuffer( GL_ARRAY_BUFFER, buffer );
-	glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_norm_data,
-			NULL, GL_STATIC_DRAW );
-	glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vertex_brute_force.data() );
-	glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, normal_brute_force.data() );
-		
-	// set up vertex arrays
-	GLuint vPosition = glGetAttribLocation( program, "vPosition" );
-	glEnableVertexAttribArray( vPosition );
-	glVertexAttribPointer( vPosition, tmp->vertex_element_size, GL_FLOAT, GL_FALSE, 0,
-				BUFFER_OFFSET(0) );
-
-	GLuint vNormal = glGetAttribLocation( program, "vNormal" );
-	glEnableVertexAttribArray( vNormal );
-	glVertexAttribPointer( vNormal, tmp->normal_element_size, GL_FLOAT, GL_FALSE, 0,
-		BUFFER_OFFSET(num_bytes_vert_data));
-	
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 1.5, 1., 1.0 );
+    point4 light_position( 0., 1.25, 1., 1.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
     color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
@@ -196,8 +176,11 @@ void
 display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glDrawArrays(GL_TRIANGLES, 0, num_verts);
+	for( auto obj : obj_data )
+	{
+		glBindVertexArray( obj->vao );
+		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.positions.size() / obj->data_soa.positions_stride );
+	}
     glutSwapBuffers();
 }
 
@@ -266,8 +249,11 @@ int main(int argc, char** argv)
 	cout << "Up vector: {" << up_vector[0] << ", " << up_vector[1] << ", " << up_vector[2] << "}" << endl;
 	
 	SceneLoader *input_scene = new SceneLoader( DATA_DIRECTORY_PATH );
-	input_scene->load_file( data_filename );	
-
+	input_scene->load_file( data_filename );
+	for( auto tmp : input_scene->loaded_objs )
+	{
+		obj_data.push_back(tmp);
+	}
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -288,7 +274,7 @@ int main(int argc, char** argv)
     glewInit();
 #endif
 
-	init(input_scene->loaded_objs, eye_position, at_position, up_vector);
+	init(eye_position, at_position, up_vector);
 
     //NOTE:  callbacks must go after window is created!!!
     glutKeyboardFunc(keyboard);
