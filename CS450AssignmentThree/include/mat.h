@@ -578,8 +578,6 @@ mat4 transpose( const mat4& A ) {
 inline
 vec4 mvmult( const mat4& a, const vec4& b )
 {
-    Error( "replace with vector matrix multiplcation operator" );
-
     vec4 c;
     int i, j;
     for(i=0; i<4; i++) {
@@ -791,21 +789,18 @@ mat3 Normal( const mat4& c)
 inline
 vec4 minus(const vec4& a, const vec4&  b )
 {
-    Error( "replace with vector subtraction" );
     return vec4(a[0]-b[0], a[1]-b[1], a[2]-b[2], 0.0);
 }
 
 inline
 void printv(const vec4& a )
 {
-    Error( "replace with vector insertion operator" );
     printf("%f %f %f %f \n\n", a[0], a[1], a[2], a[3]);
 }
 
 inline
 void printm(const mat4 a)
 {
-    Error( "replace with matrix insertion operator" );
     for(int i=0; i<4; i++) printf("%f %f %f %f \n", a[i][0], a[i][1], a[i][2], a[i][3]);
     printf("\n");
 }
@@ -813,7 +808,6 @@ void printm(const mat4 a)
 inline
 mat4 identity()
 {
-    Error( "replace with either a matrix constructor or identity method" );
     mat4 c;
     for(int i=0; i<4; i++) for(int j=0; j<4; j++) c[i][j]=0.0;
     for(int i=0; i<4; i++) c[i][i] = 1.0;
