@@ -20,31 +20,30 @@
 
 using namespace std;
 // globals
-const std::string DATA_DIRECTORY_PATH = "./Data/";
-int *idx_size = new int();
+const string DATA_DIRECTORY_PATH = "./Data/";
 
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
 
 // global variables
-GLuint  model_view;  // model-view matrix uniform shader variable location
-GLuint  projection; // projection matrix uniform shader variable location
+GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
+GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
 vector<Obj*> obj_data;
 
 
 // copied from example
 //Selection variables
-GLuint selectionColorR, selectionColorG, selectionColorB, selectionColorA;
-int picked = -1;
-GLint flag = 0;
-GLuint SelectFlagLoc;
-GLuint SelectColorRLoc, SelectColorGLoc, SelectColorBLoc, SelectColorALoc;
+GLuint gSelectionColorR, gSelectionColorG, gSelectionColorB, gSelectionColorA;
+int gPicked = -1;
+GLint gFlag = 0;
+GLuint gSelectFlagLoc;
+GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
 enum menu_val {
 	SUB_OBJECT,
-	ITEM_TRANSLATION,
+	ITEM_OBJ_TRANSLATION,
 	ITEM_ROTATION,
 	ITEM_SCALE,
 	SUB_SCENE,
@@ -52,7 +51,7 @@ enum menu_val {
 	ITEM_X,
 	ITEM_Y,
 	ITEM_Z,
-	ITEM_TRANSLATION,
+	ITEM_CAMERA_TRANSLATION,
 	ITEM_DOLLY
 };
 menu_val gMenuVal;
@@ -86,7 +85,7 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 
 // menu callback
 void menu(int num){
-	gMenuVal = num;
+	gMenuVal = (menu_val)num;
 	glutPostRedisplay();
 } 
 
@@ -195,22 +194,22 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 		 material_shininess );
 
 	
-	//Set up selection colors and a flag -- copied from example
-	SelectColorRLoc = glGetUniformLocation(program,"selectionColorR");
-	SelectColorGLoc = glGetUniformLocation(program,"selectionColorG");
-	SelectColorBLoc = glGetUniformLocation(program,"selectionColorB");
-	SelectColorALoc = glGetUniformLocation(program,"selectionColorA");
-	glUniform1i(SelectColorRLoc, selectionColorR);
-	glUniform1i(SelectColorGLoc, selectionColorG);
-	glUniform1i(SelectColorBLoc, selectionColorB);
-	glUniform1i(SelectColorALoc, selectionColorA);
+	//Set up selection colors and a gFlag -- copied from example
+	gSelectColorRLoc = glGetUniformLocation(program,"selectionColorR");
+	gSelectColorGLoc = glGetUniformLocation(program,"selectionColorG");
+	gSelectColorBLoc = glGetUniformLocation(program,"selectionColorB");
+	gSelectColorALoc = glGetUniformLocation(program,"selectionColorA");
+	glUniform1i(gSelectColorRLoc, gSelectionColorR);
+	glUniform1i(gSelectColorGLoc, gSelectionColorG);
+	glUniform1i(gSelectColorBLoc, gSelectionColorB);
+	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
-	SelectFlagLoc = glGetUniformLocation(program, "flag");
-	glUniform1i(SelectFlagLoc, flag);
+	gSelectFlagLoc = glGetUniformLocation(program, "flag");
+	glUniform1i(gSelectFlagLoc, gFlag);
 
 
-    model_view = glGetUniformLocation( program, "ModelView" );
-    projection = glGetUniformLocation( program, "Projection" );
+    gModelViewLoc = glGetUniformLocation( program, "ModelView" );
+    gProjectionLoc = glGetUniformLocation( program, "Projection" );
 
 
 
@@ -223,8 +222,8 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
     mat4  mv = LookAt( eye, at, up );
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
-    glUniformMatrix4fv( model_view, 1, GL_TRUE, mv );
-    glUniformMatrix4fv( projection, 1, GL_TRUE, p );
+    glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, mv );
+    glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, p );
 
 
     glEnable( GL_DEPTH_TEST );
@@ -245,23 +244,23 @@ mouse( int button, int state, int x, int y )
 	for(int i=0; i < obj_data.size(); i++) {
 		//should store numVerts with vao and possibly the index in the array of objects, instead of storing only ints as I currently am
 		//which represent the vaos
-		flag = 1;
+		gFlag = 1;
 
 		glBindVertexArray(obj_data[i]->vao);
 
-		selectionColorR = obj_data[i]->selectionR;
-		selectionColorG = obj_data[i]->selectionG;
-		selectionColorB = obj_data[i]->selectionB;
-		selectionColorA = obj_data[i]->selectionA;
+		gSelectionColorR = obj_data[i]->selectionR;
+		gSelectionColorG = obj_data[i]->selectionG;
+		gSelectionColorB = obj_data[i]->selectionB;
+		gSelectionColorA = obj_data[i]->selectionA;
 
 		//sync with shader
-		glUniform1i(SelectColorRLoc,selectionColorR);
-		glUniform1i(SelectColorGLoc,selectionColorG);
-		glUniform1i(SelectColorBLoc,selectionColorB);
-		glUniform1i(SelectColorALoc,selectionColorA);
-		glUniform1i(SelectFlagLoc, flag);
+		glUniform1i(gSelectColorRLoc,gSelectionColorR);
+		glUniform1i(gSelectColorGLoc,gSelectionColorG);
+		glUniform1i(gSelectColorBLoc,gSelectionColorB);
+		glUniform1i(gSelectColorALoc,gSelectionColorA);
+		glUniform1i(gSelectFlagLoc, gFlag);
 
-		//Draw the scene.  The flag will force shader to not use shading, but instead use a constant color
+		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
 		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
@@ -275,12 +274,12 @@ mouse( int button, int state, int x, int y )
 	//Read as unsigned byte.
 
 	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-	picked = -1;
+	gPicked = -1;
 	for(int i=0; i < obj_data.size(); i++) {
 		printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
 		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
 			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
-			picked = i;
+			gPicked = i;
 			obj_data[i]->selected = true;
 		}
 		else {
@@ -288,7 +287,7 @@ mouse( int button, int state, int x, int y )
 		}
 	}
 
-	printf("Picked  == %d\n", picked);
+	printf("Picked  == %d\n", gPicked);
 	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
@@ -304,8 +303,8 @@ display( void )
 	for( auto obj : obj_data )
 	{
 		//Normal render so set selection Flag to 0
-		flag = 0;
-		glUniform1i(SelectFlagLoc, flag);
+		gFlag = 0;
+		glUniform1i(gSelectFlagLoc, gFlag);
 
 		if(obj->selected == true) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
