@@ -42,15 +42,12 @@ GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
 enum menu_val {
-	SUB_OBJECT,
 	ITEM_OBJ_TRANSLATION,
-	ITEM_ROTATION,
+	ITEM_OBJ_ROTATION,
 	ITEM_SCALE,
-	SUB_SCENE,
-	SUB_ROT,
-	ITEM_X,
-	ITEM_Y,
-	ITEM_Z,
+	ITEM_CAMERA_ROT_X,
+	ITEM_CAMERA_ROT_Y,
+	ITEM_CAMERA_ROT_Z,
 	ITEM_CAMERA_TRANSLATION,
 	ITEM_DOLLY
 };
@@ -86,6 +83,8 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 // menu callback
 void menu(int num){
 	gMenuVal = (menu_val)num;
+	printf("Menu item %d chosen\n", num);
+	// TODO: switch statement to update selected object or camera
 	glutPostRedisplay();
 } 
 
@@ -93,8 +92,28 @@ void menu(int num){
 void build_menus(void) {
 	int menu_id;
 	int obj_submenu_id;
-	int scene_submenu_id;
+	int camera_submenu_id;
 	int rot_submenu_id;
+
+
+	obj_submenu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("Translation", ITEM_OBJ_TRANSLATION);
+	glutAddMenuEntry("Rotation", ITEM_OBJ_ROTATION);
+	glutAddMenuEntry("Scale", ITEM_SCALE);
+	
+	rot_submenu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("X", ITEM_CAMERA_ROT_X);
+	glutAddMenuEntry("Y", ITEM_CAMERA_ROT_Y);
+	glutAddMenuEntry("Z", ITEM_CAMERA_ROT_Z);
+
+	camera_submenu_id = glutCreateMenu(menu);
+	glutAddSubMenu("Rotation", rot_submenu_id);
+	glutAddMenuEntry("Translation", ITEM_CAMERA_TRANSLATION);
+	glutAddMenuEntry("Dolly", ITEM_DOLLY);
+	
+	menu_id = glutCreateMenu(menu);
+	glutAddSubMenu("Object Transformation", obj_submenu_id);
+	glutAddSubMenu("Camera Transformation", camera_submenu_id);
 
 	/*gSubmenuID = glutCreateMenu(menu);
     glutAddMenuEntry("Sphere", 2);
