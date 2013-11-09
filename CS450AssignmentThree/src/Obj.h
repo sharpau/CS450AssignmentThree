@@ -46,6 +46,13 @@ public:
 	int normal_element_size;
 	int texture_coord_element_size;
 	int param_space_vertex_element_size;
+
+	// for custom coloring during selection process
+	GLubyte selectionR;
+	GLubyte selectionG;
+	GLubyte selectionB;
+	GLubyte selectionA;
+
 private:
 	// internal data
 	std::vector<GLfloat> vertices;

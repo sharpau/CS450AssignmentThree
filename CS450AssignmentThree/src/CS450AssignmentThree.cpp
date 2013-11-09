@@ -31,13 +31,16 @@ typedef Angel::vec4  point4;
 GLuint  model_view;  // model-view matrix uniform shader variable location
 GLuint  projection; // projection matrix uniform shader variable location
 
-GLuint vao;
+vector<Obj*> obj_data;
 
-GLuint buffer;
-GLint num_indicies;
-GLint num_verts;
 
-GLint num_objects;
+// copied from example
+//Selection variables
+GLuint selectionColorR, selectionColorG, selectionColorB, selectionColorA;
+int picked = -1;
+GLint flag = 0;
+GLuint SelectFlagLoc;
+GLuint SelectColorRLoc, SelectColorGLoc, SelectColorBLoc, SelectColorALoc;
 
 int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 {
@@ -67,7 +70,6 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 }
 
 // OpenGL initialization
-vector<Obj*> obj_data;
 void
 init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
@@ -114,8 +116,6 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 			glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
 			cerr << *pLinkInfoLog << endl;
 		}
-
-		num_verts = obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride;
 	}
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
@@ -168,6 +168,64 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
     glEnable( GL_DEPTH_TEST );
     glClearColor( 1.0, 1.0, 1.0, 1.0 );
+}
+
+//----------------------------------------------------------------------------
+void
+mouse( int button, int state, int x, int y )
+{
+	printf("Mouse button pressed at %d, %d\n", x, y);
+	//0 is reserved for the background color so skip it.
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//render each object, setting the selection RGBA to the objects selection color (RGBA)
+	for(int i=0; i < obj_data.size(); i++) {
+		//should store numVerts with vao and possibly the index in the array of objects, instead of storing only ints as I currently am
+		//which represent the vaos
+		flag = 1;
+
+		glBindVertexArray(obj_data[i]->vao);
+
+		selectionColorR = obj_data[i]->selectionR;
+		selectionColorG = obj_data[i]->selectionG;
+		selectionColorB = obj_data[i]->selectionB;
+		selectionColorA = obj_data[i]->selectionA;
+
+		//sync with shader
+		glUniform1i(SelectColorRLoc,selectionColorR);
+		glUniform1i(SelectColorGLoc,selectionColorG);
+		glUniform1i(SelectColorBLoc,selectionColorB);
+		glUniform1i(SelectColorALoc,selectionColorA);
+		glUniform1i(SelectFlagLoc, flag);
+
+		//Draw the scene.  The flag will force shader to not use shading, but instead use a constant color
+		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
+		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WONT RENDER!
+
+	}
+
+	//Now check the pixel location to see what color is found!
+	GLubyte pixel[4];
+	GLint viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+
+	//Read as unsigned byte.
+
+	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+	picked = -1;
+	for(int i=0; i < obj_data.size(); i++) {
+		printf("Red value is %d\n", pixel[0]);
+		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
+			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
+			picked = i;
+		}
+	}
+
+	printf("Picked  == %d\n", picked);
+	//uncomment below to see the color render
+	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.  For debuggin, youi can uncomment it to see the render of the back buffer which will hold your 'fake color render'
+	//glutSwapBuffers();
 }
 
 //----------------------------------------------------------------------------
