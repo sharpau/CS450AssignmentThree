@@ -178,6 +178,13 @@ display( void )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 	for( auto obj : obj_data )
 	{
+		if(obj->filename.find("cow.obj") != string::npos) {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units 
+		}
+		else {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
 		glBindVertexArray( obj->vao );
 		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.positions.size() / obj->data_soa.positions_stride );
 	}
@@ -198,17 +205,6 @@ keyboard( unsigned char key, int x, int y )
 }
 
 //----------------------------------------------------------------------------
-
-
-
-/*
- *  simple.c
- *  This program draws a red rectangle on a white background.
- *
- * Still missing the machinery to move to 3D
- */
-
-/* glut.h includes gl.h and glu.h*/
 
 int main(int argc, char** argv)
 {
