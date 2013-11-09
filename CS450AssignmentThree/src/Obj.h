@@ -53,6 +53,7 @@ public:
 	GLubyte selectionG;
 	GLubyte selectionB;
 	GLubyte selectionA;
+	bool selected;
 
 private:
 	// internal data

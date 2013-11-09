@@ -27,7 +27,7 @@ vector<string> StringSplit(const string &source, const char *delimiter = " ", bo
     return results;
 }
 
-Obj::Obj()
+Obj::Obj() : selected(false)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
@@ -35,7 +35,7 @@ Obj::Obj()
 	model_view = Angel::identity();
 }
 
-Obj::Obj( string in_filename )
+Obj::Obj( string in_filename ) : selected(false)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
@@ -47,7 +47,7 @@ Obj::Obj( string in_filename )
 	model_view = Angel::identity();
 }
 
-Obj::Obj( string in_filename, mat4 in_model_view )
+Obj::Obj( string in_filename, mat4 in_model_view ) : selected(false)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;

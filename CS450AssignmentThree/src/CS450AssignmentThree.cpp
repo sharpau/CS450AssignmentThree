@@ -91,6 +91,13 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 	{
 		glBindVertexArray( vaos[i] );
 		obj_data[i]->vao = vaos[i];
+
+		// set up colors for selection
+		obj_data[i]->selectionR = i;  ///Really only using red component to store unique id!
+		printf("Set red component to %d\n", obj_data[i]->selectionR);
+		obj_data[i]->selectionG=0;
+		obj_data[i]->selectionB=0;
+		obj_data[i]->selectionA=1.0;
 		
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
@@ -146,6 +153,20 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
     glUniform1f( glGetUniformLocation(program, "Shininess"),
 		 material_shininess );
+
+	
+	//Set up selection colors and a flag -- copied from example
+	SelectColorRLoc = glGetUniformLocation(program,"selectionColorR");
+	SelectColorGLoc = glGetUniformLocation(program,"selectionColorG");
+	SelectColorBLoc = glGetUniformLocation(program,"selectionColorB");
+	SelectColorALoc = glGetUniformLocation(program,"selectionColorA");
+	glUniform1i(SelectColorRLoc, selectionColorR);
+	glUniform1i(SelectColorGLoc, selectionColorG);
+	glUniform1i(SelectColorBLoc, selectionColorB);
+	glUniform1i(SelectColorALoc, selectionColorA);
+
+	SelectFlagLoc = glGetUniformLocation(program, "flag");
+	glUniform1i(SelectFlagLoc, flag);
 
 
     model_view = glGetUniformLocation( program, "ModelView" );
@@ -224,7 +245,8 @@ mouse( int button, int state, int x, int y )
 
 	printf("Picked  == %d\n", picked);
 	//uncomment below to see the color render
-	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.  For debuggin, youi can uncomment it to see the render of the back buffer which will hold your 'fake color render'
+	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
+	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 	//glutSwapBuffers();
 }
 
@@ -236,7 +258,11 @@ display( void )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 	for( auto obj : obj_data )
 	{
-		if(obj->filename.find("cow.obj") != string::npos) {
+		//Normal render so set selection Flag to 0
+		flag = 0;
+		glUniform1i(SelectFlagLoc, flag);
+
+		if(obj->selected == true) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units 
 		}
