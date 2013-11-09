@@ -48,8 +48,8 @@ void main()
     gl_Position = Projection * ModelView * vPosition;
 
     if(flag != 1) {
-	color = ambient + diffuse + specular;
-	color.a = 1.0;
+		color = ambient + diffuse + specular;
+		color.a = 1.0;
 	} 
 	else {
 		color.r = float(selectionColorR)/float(255);

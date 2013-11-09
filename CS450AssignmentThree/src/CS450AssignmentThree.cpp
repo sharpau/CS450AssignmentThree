@@ -97,7 +97,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 		printf("Set red component to %d\n", obj_data[i]->selectionR);
 		obj_data[i]->selectionG=0;
 		obj_data[i]->selectionB=0;
-		obj_data[i]->selectionA=1.0;
+		obj_data[i]->selectionA=1.0; // only seems to work at 255
 		
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
@@ -236,10 +236,14 @@ mouse( int button, int state, int x, int y )
 	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 	picked = -1;
 	for(int i=0; i < obj_data.size(); i++) {
-		printf("Red value is %d\n", pixel[0]);
-		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
-			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
+		printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
+		if(obj_data[i]->selectionR == ceil(pixel[0])/* && obj_data[i]->selectionG == pixel[1]
+			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]*/) {
 			picked = i;
+			obj_data[i]->selected = true;
+		}
+		else {
+			obj_data[i]->selected = false;
 		}
 	}
 
