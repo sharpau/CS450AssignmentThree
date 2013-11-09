@@ -97,7 +97,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 		printf("Set red component to %d\n", obj_data[i]->selectionR);
 		obj_data[i]->selectionG=0;
 		obj_data[i]->selectionB=0;
-		obj_data[i]->selectionA=1.0; // only seems to work at 255
+		obj_data[i]->selectionA=255; // only seems to work at 255
 		
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
@@ -199,6 +199,7 @@ mouse( int button, int state, int x, int y )
 	//0 is reserved for the background color so skip it.
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	//render each object, setting the selection RGBA to the objects selection color (RGBA)
 	for(int i=0; i < obj_data.size(); i++) {
@@ -237,8 +238,8 @@ mouse( int button, int state, int x, int y )
 	picked = -1;
 	for(int i=0; i < obj_data.size(); i++) {
 		printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
-		if(obj_data[i]->selectionR == ceil(pixel[0])/* && obj_data[i]->selectionG == pixel[1]
-			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]*/) {
+		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
+			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
 			picked = i;
 			obj_data[i]->selected = true;
 		}
