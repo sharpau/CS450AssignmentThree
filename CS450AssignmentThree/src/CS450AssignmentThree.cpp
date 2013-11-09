@@ -42,6 +42,21 @@ GLint flag = 0;
 GLuint SelectFlagLoc;
 GLuint SelectColorRLoc, SelectColorGLoc, SelectColorBLoc, SelectColorALoc;
 
+enum menu_val {
+	SUB_OBJECT,
+	ITEM_TRANSLATION,
+	ITEM_ROTATION,
+	ITEM_SCALE,
+	SUB_SCENE,
+	SUB_ROT,
+	ITEM_X,
+	ITEM_Y,
+	ITEM_Z,
+	ITEM_TRANSLATION,
+	ITEM_DOLLY
+};
+menu_val gMenuVal;
+
 int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 {
 	ifstream input_scene_file;
@@ -67,6 +82,31 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 		status = -1;
 	}
 	return status;
+}
+
+// menu callback
+void menu(int num){
+	gMenuVal = num;
+	glutPostRedisplay();
+} 
+
+// building menus
+void build_menus(void) {
+	int menu_id;
+	int obj_submenu_id;
+	int scene_submenu_id;
+	int rot_submenu_id;
+
+	/*gSubmenuID = glutCreateMenu(menu);
+    glutAddMenuEntry("Sphere", 2);
+    glutAddMenuEntry("Cone", 3);
+    glutAddMenuEntry("Torus", 4);
+    glutAddMenuEntry("Teapot", 5);     
+	menu_id = glutCreateMenu(menu);
+    glutAddMenuEntry("Clear", 1);
+    glutAddSubMenu("Draw", gSubmenuID);
+    glutAddMenuEntry("Quit", 0); */    
+	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
 // OpenGL initialization
@@ -223,7 +263,7 @@ mouse( int button, int state, int x, int y )
 
 		//Draw the scene.  The flag will force shader to not use shading, but instead use a constant color
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
-		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WONT RENDER!
+		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
 	}
 
@@ -249,7 +289,7 @@ mouse( int button, int state, int x, int y )
 	}
 
 	printf("Picked  == %d\n", picked);
-	//uncomment below to see the color render
+	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 	//glutSwapBuffers();
@@ -362,6 +402,7 @@ int main(int argc, char** argv)
 	init(eye_position, at_position, up_vector);
 
     //NOTE:  callbacks must go after window is created!!!
+	build_menus();
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
     glutDisplayFunc(display);
