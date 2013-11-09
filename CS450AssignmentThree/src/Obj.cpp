@@ -261,6 +261,8 @@ int Obj::load_from_file(string in_filename)
 			}
 		}
 		data_soa.normals_stride = this->normal_element_size;
+
+		data_soa.num_vertices = data_soa.positions.size() / data_soa.positions_stride;
 		this->data_soa.positions.shrink_to_fit();
 		this->data_soa.normals.shrink_to_fit();
 		this->data_soa.colors.shrink_to_fit();

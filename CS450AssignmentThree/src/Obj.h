@@ -14,6 +14,7 @@ struct SOA {
 	GLuint positions_stride;
 	GLuint normals_stride;
 	GLuint colors_stride;
+	GLuint num_vertices;
 };
 class Obj
 {

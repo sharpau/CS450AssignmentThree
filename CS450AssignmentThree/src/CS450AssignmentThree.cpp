@@ -244,7 +244,7 @@ display( void )
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 		glBindVertexArray( obj->vao );
-		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.positions.size() / obj->data_soa.positions_stride );
+		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.num_vertices );
 	}
     glutSwapBuffers();
 }
@@ -332,6 +332,7 @@ int main(int argc, char** argv)
 
     //NOTE:  callbacks must go after window is created!!!
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse);
     glutDisplayFunc(display);
     glutMainLoop();
 
