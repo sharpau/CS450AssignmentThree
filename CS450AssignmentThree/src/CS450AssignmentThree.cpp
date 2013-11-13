@@ -42,7 +42,112 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
+enum menu_val {
+	ITEM_OBJ_TRANSLATION,
+	ITEM_OBJ_ROTATION,
+	ITEM_SCALE,
+	ITEM_CAMERA_ROT_X,
+	ITEM_CAMERA_ROT_Y,
+	ITEM_CAMERA_ROT_Z,
+	ITEM_CAMERA_TRANSLATION,
+	ITEM_DOLLY
+};
+menu_val gMenuVal;
 
+int load_scene_by_file(string filename, vector<string>& obj_filename_list)
+{
+	ifstream input_scene_file;
+	string line;
+	string filepath;
+	int status = -1;
+
+	filepath = DATA_DIRECTORY_PATH + filename;
+
+	input_scene_file.open(filepath);
+	if(input_scene_file.is_open())
+	{
+		getline(input_scene_file, line);
+		while(!input_scene_file.eof())
+		{
+			getline(input_scene_file, line);
+			obj_filename_list.push_back(line);
+			cout << line << endl;
+		}
+		status = 0;
+		input_scene_file.close();
+	} else {
+		status = -1;
+	}
+	return status;
+}
+
+// menu callback
+void menu(int num){
+	gMenuVal = (menu_val)num;
+
+	Obj * current = obj_data[gPicked];
+
+	switch(gMenuVal) {
+	case ITEM_OBJ_TRANSLATION:
+		printf("Translate mode for object %s\n", current->filename.c_str());
+		break;
+	case ITEM_OBJ_ROTATION:
+		printf("Rotate mode for object %s\n", current->filename.c_str());
+		break;
+	case ITEM_SCALE:
+		printf("Scale mode for object %s\n", current->filename.c_str());
+		break;
+	case ITEM_CAMERA_ROT_X:
+		printf("Rotate camera about X\n");
+		break;
+	case ITEM_CAMERA_ROT_Y:
+		printf("Rotate camera about Y\n");
+		break;
+	case ITEM_CAMERA_ROT_Z:
+		printf("Rotate camera about Z\n");
+		break;
+	case ITEM_CAMERA_TRANSLATION:
+		printf("Camera translation mode: dragging pans camera\n");
+		break;
+	case ITEM_DOLLY:
+		printf("Camera dolly mode: dragging moves forward/back");
+		break;
+	}
+
+	glutPostRedisplay();
+} 
+
+// building menus
+void build_menus(void) {
+	int menu_id;
+	int obj_submenu_id;
+	int camera_submenu_id;
+	int rot_submenu_id;
+
+
+	obj_submenu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("Translation", ITEM_OBJ_TRANSLATION);
+	glutAddMenuEntry("Rotation", ITEM_OBJ_ROTATION);
+	glutAddMenuEntry("Scale", ITEM_SCALE);
+	
+	rot_submenu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("X", ITEM_CAMERA_ROT_X);
+	glutAddMenuEntry("Y", ITEM_CAMERA_ROT_Y);
+	glutAddMenuEntry("Z", ITEM_CAMERA_ROT_Z);
+
+	camera_submenu_id = glutCreateMenu(menu);
+	glutAddSubMenu("Rotation", rot_submenu_id);
+	glutAddMenuEntry("Translation", ITEM_CAMERA_TRANSLATION);
+	glutAddMenuEntry("Dolly", ITEM_DOLLY);
+	
+	menu_id = glutCreateMenu(menu);
+	glutAddSubMenu("Object Transformation", obj_submenu_id);
+	glutAddSubMenu("Camera Transformation", camera_submenu_id);
+ 
+	glutAttachMenu(GLUT_RIGHT_BUTTON);
+}
+
+// OpenGL initialization
 void
 init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
@@ -193,14 +298,13 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 void
 mouse( int button, int state, int x, int y )
 {
-	printf("Mouse button pressed at %d, %d\n", x, y);
-	//0 is reserved for the background color so skip it.
+	//printf("Mouse button pressed at %d, %d\n", x, y);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	//render each object, setting the selection RGBA to the objects selection color (RGBA)
-	for(int i=0; i < obj_data.size(); i++) {
+	for(int i = 0; i < obj_data.size(); i++) {
 		//should store numVerts with vao and possibly the index in the array of objects, instead of storing only ints as I currently am
 		//which represent the vaos
 		gFlag = 1;
@@ -221,7 +325,7 @@ mouse( int button, int state, int x, int y )
 
 		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
-		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WONT RENDER!
+		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
 	}
 
@@ -235,7 +339,7 @@ mouse( int button, int state, int x, int y )
 	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 	gPicked = -1;
 	for(int i=0; i < obj_data.size(); i++) {
-		printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
+		//printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
 		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
 			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
 			gPicked = i;
@@ -246,8 +350,8 @@ mouse( int button, int state, int x, int y )
 		}
 	}
 
-	printf("Picked  == %d\n", gPicked);
-	//uncomment below to see the color render
+	//printf("Picked  == %d\n", gPicked);
+	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 	//glutSwapBuffers();
@@ -360,6 +464,7 @@ int main(int argc, char** argv)
 	init(eye_position, at_position, up_vector);
 
     //NOTE:  callbacks must go after window is created!!!
+	build_menus();
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
     glutDisplayFunc(display);
