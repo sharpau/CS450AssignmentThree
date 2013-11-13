@@ -22,6 +22,7 @@ using namespace std;
 // globals
 const string DATA_DIRECTORY_PATH = "./Data/";
 
+Obj *GROUND_QUAD = new Obj();
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -41,37 +42,34 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
-int load_scene_by_file(string filename, vector<string>& obj_filename_list)
-{
-	ifstream input_scene_file;
-	string line;
-	string filepath;
-	int status = -1;
 
-	filepath = DATA_DIRECTORY_PATH + filename;
-
-	input_scene_file.open(filepath);
-	if(input_scene_file.is_open())
-	{
-		getline(input_scene_file, line);
-		while(!input_scene_file.eof())
-		{
-			getline(input_scene_file, line);
-			obj_filename_list.push_back(line);
-			cout << line << endl;
-		}
-		status = 0;
-		input_scene_file.close();
-	} else {
-		status = -1;
-	}
-	return status;
-}
-
-// OpenGL initialization
 void
 init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
+	GROUND_QUAD->add_vertex( -5., 0., 5. );
+	GROUND_QUAD->add_vertex( -5., 0., -5. );
+	GROUND_QUAD->add_vertex( 5., 0., -5. );
+	GROUND_QUAD->add_vertex( 5., 0., 5. );
+	GROUND_QUAD->vertex_indicies.push_back( 0 );
+	GROUND_QUAD->vertex_indicies.push_back( 3 );
+	GROUND_QUAD->vertex_indicies.push_back( 2 );
+	GROUND_QUAD->vertex_indicies.push_back( 0 );
+	GROUND_QUAD->vertex_indicies.push_back( 2 );
+	GROUND_QUAD->vertex_indicies.push_back( 1 );
+	GROUND_QUAD->vertex_element_size = 3.;
+
+	GROUND_QUAD->add_normal( 0., 1., 0. );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_indicies.push_back( 0 );
+	GROUND_QUAD->normal_element_size = 3.;
+
+	GROUND_QUAD->load_data( );
+
+	obj_data.push_back( GROUND_QUAD );
     // Create a vertex array object
     GLuint *vaos;
 	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
@@ -174,6 +172,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
 
     mat4 p = Perspective(90.0, 1.0, 0.1, 4.0);
+
     point4  eye( in_eye[0], in_eye[1], in_eye[2], 1.0);
     point4  at( in_at[0], in_at[1], in_at[2], 1.0 );
     vec4    up( in_up[0], in_up[1], in_up[2], 0.0 );

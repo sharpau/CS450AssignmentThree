@@ -247,7 +247,25 @@ int Obj::load_from_file(string in_filename)
 				}
 			}
 		}
-		for(auto v_idx : this->vertex_indicies)
+		this->load_data( );
+
+		cout << "Loaded file '" << this->filename << "'" << endl;
+		cout << "# of Vertexes: " << this->data_soa.positions.size() / this->data_soa.positions_stride << endl;
+		cout << "# of Normals: " << this->data_soa.normals.size() / this->data_soa.normals_stride << endl;
+		bad_file = false;
+		status = 0;
+		in_file.close();
+	} else {
+		cerr << "Unable to open file: '" << filename << "'" << endl;
+		bad_file = true;
+		return status;
+	}
+	return status;
+}
+
+void Obj::load_data( void )
+{
+	for(auto v_idx : this->vertex_indicies)
 		{
 			for(int i = 0; i < this->vertex_element_size; i++) {
 				data_soa.positions.push_back(this->vertices[this->vertex_element_size*v_idx + i]);
@@ -266,22 +284,8 @@ int Obj::load_from_file(string in_filename)
 		this->data_soa.positions.shrink_to_fit();
 		this->data_soa.normals.shrink_to_fit();
 		this->data_soa.colors.shrink_to_fit();
-
 		this->normals.clear();
 		this->normals.shrink_to_fit();
 		this->vertices.clear();
 		this->vertices.shrink_to_fit();
-
-		cout << "Loaded file '" << this->filename << "'" << endl;
-		cout << "# of Vertexes: " << this->data_soa.positions.size() / this->data_soa.positions_stride << endl;
-		cout << "# of Normals: " << this->data_soa.normals.size() / this->data_soa.normals_stride << endl;
-		bad_file = false;
-		status = 0;
-		in_file.close();
-	} else {
-		cerr << "Unable to open file: '" << filename << "'" << endl;
-		bad_file = true;
-		return status;
-	}
-	return status;
 }
