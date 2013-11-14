@@ -266,7 +266,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
 	glEnableVertexAttribArray(colorLoc);
-	glVertexAttribPointer(colorLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+	glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 #pragma endregion
 
