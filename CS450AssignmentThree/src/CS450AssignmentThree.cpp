@@ -207,16 +207,13 @@ init_manips(GLint vertLoc, GLint colorLoc) {
 	}
 }
 
-// puke
-GLuint program;
-
 // OpenGL initialization
 void
 init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
     // Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    /* trying this as a global GLuint*/ program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
 	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
 	GLint normLoc = glGetAttribLocation( program, "vNormal" );
@@ -329,6 +326,12 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
 
     mat4  mv = LookAt( eye, at, up );
+	manips[0].model_view = mv;
+	manips[1].model_view = mv;
+	manips[2].model_view = mv;
+	for(auto obj : obj_data) {
+		obj->model_view = mv;
+	}
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
     glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, mv );
@@ -375,29 +378,31 @@ mouse( int button, int state, int x, int y )
 		glUniform1i(gSelectColorALoc,gSelectionColorA);
 		glUniform1i(gSelectFlagLoc, gFlag);
 
+		
+		//glUniformMatrix4fv(gModelViewLoc, 1, false, obj_data[i]->model_view);
+
 		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
 	}
 
-	// draw manips with normal color
-	gFlag = 2;	// change flag to 2, for absolute coloring
-	glUniform1i(gSelectFlagLoc, gFlag);
-	// draw manipulators here
+	// check if a manip was clicked
 	gFlag = 2;	// change flag to 2, for absolute coloring
 	glUniform1i(gSelectFlagLoc, gFlag);
 	for(int i = 0; i < 3; i++) {
-		mat4 rot = Angel::identity();
+		mat4 rot = manips[i].model_view;
 
 		// default obj points up y axis
 		if(i == 0) {
-			rot = Angel::RotateZ(90.0f);
+			rot = Angel::RotateZ(90.0f) * rot;
 		}
 		else if(i == 2) {
-			rot = Angel::RotateX(90.0f);
+			rot = Angel::RotateX(90.0f) * rot;
 		}
 				
 		// put rot in as model view matrix
-		//glUniformMatrix4fv(glGetUniformLocation(program, "ModelView"), 1, false, rot);
+
+		// try uncommenting this line. pretty sure this logic just needs to go elsewhere, not totally sure how uniforms work.
+		//glUniformMatrix4fv(gModelViewLoc, 1, false, rot);
 		// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
 		// I think something like the above line would do it.
 		// But I'm also not sure it should be done here rather than in init.
@@ -422,27 +427,20 @@ mouse( int button, int state, int x, int y )
 
 	// TODO: check first if a manipulator was selected. color of (255,0,0) or (0,255,0) or (0,0,255)
 	if(ceil(pixel[0]) == 255 && ceil(pixel[1]) == 0 && ceil(pixel[2]) == 0) {
-		// red => x manipulator
-		printf("red manip\n");
 		held = X_HELD;
 		return;
 	}
 	else if(ceil(pixel[0]) == 0 && ceil(pixel[1]) == 255 && ceil(pixel[2]) == 0) {
-		// green => y manipulator
-		printf("green manip\n");
 		held = Y_HELD;
 		return;
 	}
 	else if(ceil(pixel[0]) == 0 && ceil(pixel[1]) == 0 && ceil(pixel[2]) == 255) {
-		// blue => z manipulator
-		printf("blue manip\n");
 		held = Z_HELD;
 		return;
 	}
 
 
 	for(int i=0; i < obj_data.size(); i++) {
-		//printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
 		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
 			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
 			gPicked = i;
@@ -477,20 +475,20 @@ display( void )
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			for(int i = 0; i < 3; i++) {
-				mat4 rot = Angel::identity();
+				mat4 rot = manips[i].model_view;
 
 				// default obj points up y axis
 				if(i == 0) {
-					rot = Angel::RotateZ(90.0f);
+					rot = Angel::RotateZ(90.0f) * rot;
 				}
 				else if(i == 2) {
-					rot = Angel::RotateX(90.0f);
+					rot = Angel::RotateX(90.0f) * rot;
 				}
 				
 				// put rot in as model view matrix
 
 				// try uncommenting this line. pretty sure this logic just needs to go elsewhere, not totally sure how uniforms work.
-				//glUniformMatrix4fv(glGetUniformLocation(program, "ModelView"), 1, false, rot);
+				//glUniformMatrix4fv(gModelViewLoc, 1, false, rot);
 				// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
 				// I think something like the above line would do it.
 				// But I'm also not sure it should be done here rather than in init.
@@ -500,7 +498,9 @@ display( void )
 				glBindVertexArray(manips[i].vao);
 				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
 			}
-
+			
+			
+			//glUniformMatrix4fv(gModelViewLoc, 1, false, obj->model_view);
 			// back to normal rendering
 			gFlag = 0;
 			glUniform1i(gSelectFlagLoc, gFlag);
