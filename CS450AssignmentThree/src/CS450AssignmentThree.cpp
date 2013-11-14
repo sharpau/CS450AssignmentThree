@@ -528,8 +528,11 @@ motion(int x, int y) {
 
 	vec3 world_transform = /* TODO some awesome function instead */ vec3(delta_x, delta_y, 0.0f);
 
+	// Padraic: check my assumptions about the perpendicular vs parallel components of the mouse vector needed for transformations
+	// these are just a rough idea of what's necessary and may not line up 100% with the actual math
 	switch(held) {
 	case NO_MANIP_HELD:
+		printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
 		switch(gCurrentCameraMode) {
 		case CAMERA_ROT_X:
 			// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
@@ -544,7 +547,7 @@ motion(int x, int y) {
 			// take the world_transform component parallel to the viewing plane, move the camera by that amount
 			break;
 		case CAMERA_DOLLY:
-			// take the world_Transform component perpendicular to teh viewing plane, move the camera in/out that much
+			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
 			break;
 		}
 
@@ -553,21 +556,22 @@ motion(int x, int y) {
 	case X_HELD:
 	case Y_HELD:
 	case Z_HELD:
+		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
 		// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
 		// so it should be possible to write axis-agnostic code using 'held' as the index for which dimension
 		// right????
 		switch(gCurrentObjMode) {
 		case OBJ_TRANSLATE:
+			// take the world_transform component parallel to x/y/z, move object that far
 			break;
 		case OBJ_ROTATE:
+			// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
 			break;
 		case OBJ_SCALE:
+			// like translate, but scale instead of moving
 			break;
 		}
 		
-		break;
-
-	default:
 		break;
 	}
 }
