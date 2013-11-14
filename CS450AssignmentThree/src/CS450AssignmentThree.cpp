@@ -43,6 +43,31 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
+// which manipulator is being dragged
+enum manip {
+	NO_MANIP_HELD,
+	X_HELD,
+	Y_HELD,
+	Z_HELD
+};
+manip held;
+int last_x, last_y;
+
+enum obj_mode {
+	OBJ_TRANSLATE,
+	OBJ_ROTATE,
+	OBJ_SCALE
+};
+enum camera_mode {
+	CAMERA_ROT_X,
+	CAMERA_ROT_Y,
+	CAMERA_ROT_Z,
+	CAMERA_TRANSLATE,
+	CAMERA_DOLLY
+};
+obj_mode gCurrentObjMode = OBJ_TRANSLATE;
+camera_mode gCurrentCameraMode = CAMERA_TRANSLATE;
+
 enum menu_val {
 	ITEM_OBJ_TRANSLATION,
 	ITEM_OBJ_ROTATION,
@@ -53,7 +78,6 @@ enum menu_val {
 	ITEM_CAMERA_TRANSLATION,
 	ITEM_DOLLY
 };
-menu_val gMenuVal;
 
 int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 {
@@ -84,34 +108,30 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 
 // menu callback
 void menu(int num){
-	gMenuVal = (menu_val)num;
-
-	Obj * current = obj_data[gPicked];
-
-	switch(gMenuVal) {
+	switch(num) {
 	case ITEM_OBJ_TRANSLATION:
-		printf("Translate mode for object %s\n", current->filename.c_str());
+		gCurrentObjMode = OBJ_TRANSLATE;
 		break;
 	case ITEM_OBJ_ROTATION:
-		printf("Rotate mode for object %s\n", current->filename.c_str());
+		gCurrentObjMode = OBJ_ROTATE;
 		break;
 	case ITEM_SCALE:
-		printf("Scale mode for object %s\n", current->filename.c_str());
+		gCurrentObjMode = OBJ_SCALE;
 		break;
 	case ITEM_CAMERA_ROT_X:
-		printf("Rotate camera about X\n");
+		gCurrentCameraMode = CAMERA_ROT_X;
 		break;
 	case ITEM_CAMERA_ROT_Y:
-		printf("Rotate camera about Y\n");
+		gCurrentCameraMode = CAMERA_ROT_Y;
 		break;
 	case ITEM_CAMERA_ROT_Z:
-		printf("Rotate camera about Z\n");
+		gCurrentCameraMode = CAMERA_ROT_Z;
 		break;
 	case ITEM_CAMERA_TRANSLATION:
-		printf("Camera translation mode: dragging pans camera\n");
+		gCurrentCameraMode = CAMERA_TRANSLATE;
 		break;
 	case ITEM_DOLLY:
-		printf("Camera dolly mode: dragging moves forward/back");
+		gCurrentCameraMode = CAMERA_DOLLY;
 		break;
 	}
 
@@ -258,10 +278,10 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 		obj_data[i]->vao = vaos[i];
 
 		// set up colors for selection
-		obj_data[i]->selectionR = i;  ///Really only using red component to store unique id!
+		obj_data[i]->selectionR = i;
 		printf("Set red component to %d\n", obj_data[i]->selectionR);
-		obj_data[i]->selectionG=0;
-		obj_data[i]->selectionB=0;
+		obj_data[i]->selectionG=i;
+		obj_data[i]->selectionB=i;
 		obj_data[i]->selectionA=255; // only seems to work at 255
 		
 		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
@@ -361,7 +381,13 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 void
 mouse( int button, int state, int x, int y )
 {
-	//printf("Mouse button pressed at %d, %d\n", x, y);
+	held = NO_MANIP_HELD;
+	if(button != GLUT_LEFT_BUTTON || state != GLUT_DOWN) {
+		return;
+	}
+
+	last_x = x;
+	last_y = y;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -390,6 +416,12 @@ mouse( int button, int state, int x, int y )
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
 	}
 
+	// draw manips with normal color
+	gFlag = 2;	// change flag to 2, for absolute coloring
+	glUniform1i(gSelectFlagLoc, gFlag);
+	glBindVertexArray(manips->vao);
+	glDrawArrays(GL_LINES, 0, manips->vertices.size());
+
 	// this didn't need to be in the loop
 	glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
@@ -403,6 +435,25 @@ mouse( int button, int state, int x, int y )
 	gPicked = -1;
 
 	// TODO: check first if a manipulator was selected. color of (255,0,0) or (0,255,0) or (0,0,255)
+	if(ceil(pixel[0]) == 255 && ceil(pixel[1]) == 0 && ceil(pixel[2]) == 0) {
+		// red => x manipulator
+		printf("red manip\n");
+		held = X_HELD;
+		return;
+	}
+	else if(ceil(pixel[0]) == 0 && ceil(pixel[1]) == 255 && ceil(pixel[2]) == 0) {
+		// green => y manipulator
+		printf("green manip\n");
+		held = Y_HELD;
+		return;
+	}
+	else if(ceil(pixel[0]) == 0 && ceil(pixel[1]) == 0 && ceil(pixel[2]) == 255) {
+		// blue => z manipulator
+		printf("blue manip\n");
+		held = Z_HELD;
+		return;
+	}
+
 
 	for(int i=0; i < obj_data.size(); i++) {
 		//printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
@@ -440,6 +491,7 @@ display( void )
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			glBindVertexArray(manips->vao);
+			glLineWidth(5.0f);
 			glDrawArrays(GL_LINES, 0, manips->vertices.size());
 				
 			// back to normal rendering
@@ -463,6 +515,66 @@ display( void )
 //----------------------------------------------------------------------------
 
 void
+motion(int x, int y) {
+	int delta_x = last_x - x;
+	int delta_y = last_y - y;
+	last_x = x;
+	last_y = y;
+
+	// so to translate XY mouse vector into an in-universe vector, we need to do two things
+	// 1. apply camera transform (for instance, if we're looking down -y, the transform from viewing xy play to xz plane)
+	// 2. translate the units of the vector from pixels into our arbitrary model units 
+	//		(think of doing this with camera in default location. on-screen xy must be turned into in-universe xy in a unit-consistent way. it's possible that this involves the view volume.)
+
+	vec3 world_transform = /* TODO some awesome function instead */ vec3(delta_x, delta_y, 0.0f);
+
+	switch(held) {
+	case NO_MANIP_HELD:
+		switch(gCurrentCameraMode) {
+		case CAMERA_ROT_X:
+			// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_ROT_Y:
+			// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_ROT_Z:
+			// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_TRANSLATE:
+			// take the world_transform component parallel to the viewing plane, move the camera by that amount
+			break;
+		case CAMERA_DOLLY:
+			// take the world_Transform component perpendicular to teh viewing plane, move the camera in/out that much
+			break;
+		}
+
+		break;
+
+	case X_HELD:
+	case Y_HELD:
+	case Z_HELD:
+		// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
+		// so it should be possible to write axis-agnostic code using 'held' as the index for which dimension
+		// right????
+		switch(gCurrentObjMode) {
+		case OBJ_TRANSLATE:
+			break;
+		case OBJ_ROTATE:
+			break;
+		case OBJ_SCALE:
+			break;
+		}
+		
+		break;
+
+	default:
+		break;
+	}
+}
+
+//----------------------------------------------------------------------------
+
+void
 keyboard( unsigned char key, int x, int y )
 {
     switch( key ) {
@@ -478,7 +590,7 @@ keyboard( unsigned char key, int x, int y )
 int main(int argc, char** argv)
 {
 	string data_filename = "test.scn";
-	string application_info = "CS450AssignmentTwo: ";
+	string application_info = "CS450AssignmentThree: ";
 	string *window_title = new string;
 	GLfloat eye_position[] = { 0., 0., 1., 1.};
 	GLfloat at_position[] = { 0., 0., 0., 1. };
@@ -545,6 +657,7 @@ int main(int argc, char** argv)
 	build_menus();
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
     glutDisplayFunc(display);
     glutMainLoop();
 
