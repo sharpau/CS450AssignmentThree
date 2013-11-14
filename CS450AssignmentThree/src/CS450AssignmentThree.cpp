@@ -23,7 +23,7 @@ using namespace std;
 const string DATA_DIRECTORY_PATH = "./Data/";
 
 Obj *GROUND_QUAD = new Obj();
-Obj *manips = new Obj(DATA_DIRECTORY_PATH + "axis.obj");
+Obj manips[3];
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -170,38 +170,45 @@ void build_menus(void) {
 
 void
 init_manips(GLint vertLoc, GLint colorLoc) {
-	// already used constructor to load in from file
+	for(int i = 0; i < 3; i++) {
+		manips[i] = Obj(DATA_DIRECTORY_PATH + "axis.obj");
 
-	// setup vao and two vbos for manipulators
-	glGenVertexArrays(1, &manips->vao);
-	glBindVertexArray(manips->vao);
-	GLuint manips_buffer[6]; // 0 is vertices, 1 is colors
-	glGenBuffers(6, manips_buffer);
+		
+		// setup vao and two vbos for manipulators
+		glGenVertexArrays(1, &manips[i].vao);
+		glBindVertexArray(manips[i].vao);
+		GLuint manips_buffer[2]; // 0 is vertices, 1 is colors
+		glGenBuffers(2, manips_buffer);
 
-	manips->data_soa.colors_stride = 4;
-	for(int i = 0; i < manips->data_soa.num_vertices; i++) {
-		manips->data_soa.colors.push_back(1.0);
-		manips->data_soa.colors.push_back(0.0);
-		manips->data_soa.colors.push_back(0.0);
-		manips->data_soa.colors.push_back(1.0);
+		manips[i].data_soa.colors_stride = 4;
+		for(int j = 0; j < manips[i].data_soa.num_vertices; j++) {
+			manips[i].data_soa.colors.push_back(i == 0 ? 1.0 : 0.0);
+			manips[i].data_soa.colors.push_back(i == 1 ? 1.0 : 0.0);
+			manips[i].data_soa.colors.push_back(i == 2 ? 1.0 : 0.0);
+			manips[i].data_soa.colors.push_back(1.0);
+		}
+
+		
+		// vertices
+		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips[i].data_soa.positions.size(), manips[i].data_soa.positions.data(), GL_STATIC_DRAW);
+		// colors
+		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips[i].data_soa.colors.size(), manips[i].data_soa.colors.data(), GL_STATIC_DRAW);
+
+		// color added to shader. only displays with flag == 2
+		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
+		glEnableVertexAttribArray(vertLoc);
+		glVertexAttribPointer(vertLoc, manips[i].data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
+		glEnableVertexAttribArray(colorLoc);
+		glVertexAttribPointer(colorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 	}
-
-	// vertices
-	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->data_soa.positions.size(), manips->data_soa.positions.data(), GL_STATIC_DRAW);
-	// colors
-	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->data_soa.colors.size(), manips->data_soa.colors.data(), GL_STATIC_DRAW);
-
-	// color added to shader. only displays with flag == 2
-	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
-	glEnableVertexAttribArray(vertLoc);
-	glVertexAttribPointer(vertLoc, manips->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
-	glEnableVertexAttribArray(colorLoc);
-	glVertexAttribPointer(colorLoc, manips->data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 }
+
+// puke
+GLuint program;
 
 // OpenGL initialization
 void
@@ -209,7 +216,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
     // Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    /* trying this as a global GLuint*/ program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
 	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
 	GLint normLoc = glGetAttribLocation( program, "vNormal" );
@@ -375,8 +382,31 @@ mouse( int button, int state, int x, int y )
 	// draw manips with normal color
 	gFlag = 2;	// change flag to 2, for absolute coloring
 	glUniform1i(gSelectFlagLoc, gFlag);
-	glBindVertexArray(manips->vao);
-	glDrawArrays(GL_TRIANGLES, 0, manips->data_soa.num_vertices);
+	// draw manipulators here
+	gFlag = 2;	// change flag to 2, for absolute coloring
+	glUniform1i(gSelectFlagLoc, gFlag);
+	for(int i = 0; i < 3; i++) {
+		mat4 rot = Angel::identity();
+
+		// default obj points up y axis
+		if(i == 0) {
+			rot = Angel::RotateZ(90.0f);
+		}
+		else if(i == 2) {
+			rot = Angel::RotateX(90.0f);
+		}
+				
+		// put rot in as model view matrix
+		//glUniformMatrix4fv(glGetUniformLocation(program, "ModelView"), 1, false, rot);
+		// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
+		// I think something like the above line would do it.
+		// But I'm also not sure it should be done here rather than in init.
+		// this certainly blows things up
+
+
+		glBindVertexArray(manips[i].vao);
+		glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
+	}
 
 	// this didn't need to be in the loop
 	glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
@@ -446,9 +476,31 @@ display( void )
 			// draw manipulators here
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
-			glBindVertexArray(manips->vao);
-			glDrawArrays(GL_TRIANGLES, 0, manips->data_soa.num_vertices);
+			for(int i = 0; i < 3; i++) {
+				mat4 rot = Angel::identity();
+
+				// default obj points up y axis
+				if(i == 0) {
+					rot = Angel::RotateZ(90.0f);
+				}
+				else if(i == 2) {
+					rot = Angel::RotateX(90.0f);
+				}
 				
+				// put rot in as model view matrix
+
+				// try uncommenting this line. pretty sure this logic just needs to go elsewhere, not totally sure how uniforms work.
+				//glUniformMatrix4fv(glGetUniformLocation(program, "ModelView"), 1, false, rot);
+				// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
+				// I think something like the above line would do it.
+				// But I'm also not sure it should be done here rather than in init.
+				// this certainly blows things up
+
+
+				glBindVertexArray(manips[i].vao);
+				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
+			}
+
 			// back to normal rendering
 			gFlag = 0;
 			glUniform1i(gSelectFlagLoc, gFlag);
