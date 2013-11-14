@@ -23,6 +23,7 @@ using namespace std;
 const string DATA_DIRECTORY_PATH = "./Data/";
 
 Obj *GROUND_QUAD = new Obj();
+Obj *manips = new Obj();
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -151,6 +152,17 @@ void build_menus(void) {
 void
 init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 {
+    // Load shaders and use the resulting shader program
+	// doing this ahead of time so we can use it for setup of special objects
+    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    glUseProgram( program );
+	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+	GLint normLoc = glGetAttribLocation( program, "vNormal" );
+	GLint colorLoc = glGetAttribLocation( program, "vColor" );
+
+
+#pragma region special_objects
+	// build the special objects not loaded by user
 	GROUND_QUAD->add_vertex( -5., 0., 5. );
 	GROUND_QUAD->add_vertex( -5., 0., -5. );
 	GROUND_QUAD->add_vertex( 5., 0., -5. );
@@ -173,8 +185,91 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 	GROUND_QUAD->normal_element_size = 3.;
 
 	GROUND_QUAD->load_data( );
+	//obj_data.push_back( GROUND_QUAD );
+	// I think these 'special objects' should not be part of our array.
+	// they are fundamentally different, drawn different, selection will be different, etc.
+	// so it'll only make the display loop insane to put them in the vector
+	// for instance the manipulators need constant colors, not shaded
+	
+	// line on x axis
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(1);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
 
-	obj_data.push_back( GROUND_QUAD );
+	// line on y axis
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(1);
+	manips->vertices.push_back(0);
+
+	// line on z axis
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(0);
+	manips->vertices.push_back(1);
+	manips->vertex_element_size = 3;
+
+	// 2 red points
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+
+	// 2 green points
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+
+	// 2 blue points
+	manips->colors.push_back(0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(0);
+	manips->colors.push_back(1.0);
+	manips->colors.push_back(1.0);
+
+	// setup vao and two vbos for manipulators
+	glGenVertexArrays(1, &manips->vao);
+	glBindVertexArray(manips->vao);
+	GLuint manips_buffer[2]; // 0 is vertices, 1 is colors
+	glGenBuffers(2, manips_buffer);
+	// vertices
+	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->vertices.size(), manips->vertices.data(), GL_STATIC_DRAW);
+	// colors
+	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->colors.size(), manips->colors.data(), GL_STATIC_DRAW);
+
+	// do we need to use an old shader here without lighting, just colors??
+	// or just add colors to our current shader? <-- trying this
+	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
+	glEnableVertexAttribArray(vertLoc);
+	glVertexAttribPointer(vertLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
+	glEnableVertexAttribArray(colorLoc);
+	glVertexAttribPointer(colorLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+#pragma endregion
+
     // Create a vertex array object
     GLuint *vaos;
 	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
@@ -184,11 +279,6 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 	vbos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
 	glGenBuffers( obj_data.size(), vbos );
 	
-    // Load shaders and use the resulting shader program
-    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-    glUseProgram( program );
-	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
-	GLint normLoc = glGetAttribLocation( program, "vNormal" );
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
 		glBindVertexArray( vaos[i] );
@@ -325,9 +415,10 @@ mouse( int button, int state, int x, int y )
 
 		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
 		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
-		glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
-
 	}
+
+	// this didn't need to be in the loop
+	glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
 	//Now check the pixel location to see what color is found!
 	GLubyte pixel[4];
@@ -335,9 +426,11 @@ mouse( int button, int state, int x, int y )
 	glGetIntegerv(GL_VIEWPORT, viewport);
 
 	//Read as unsigned byte.
-
 	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 	gPicked = -1;
+
+	// TODO: check first if a manipulator was selected. color of (255,0,0) or (0,255,0) or (0,0,255)
+
 	for(int i=0; i < obj_data.size(); i++) {
 		//printf("Red value clicked is %d, red value of object is %d\n", pixel[0], obj_data[i]->selectionR);
 		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
@@ -370,8 +463,20 @@ display( void )
 		glUniform1i(gSelectFlagLoc, gFlag);
 
 		if(obj->selected == true) {
+			// draw manipulators here
+			gFlag = 2;	// change flag to 2, for absolute coloring
+			glUniform1i(gSelectFlagLoc, gFlag);
+			glBindVertexArray(manips->vao);
+			glDrawArrays(GL_LINES, 0, manips->vertices.size());
+				
+			// back to normal rendering
+			gFlag = 0;
+			glUniform1i(gSelectFlagLoc, gFlag);
+
+			// wireframe
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units 
+			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units
+
 		}
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

@@ -72,5 +72,7 @@ public:
 	std::vector<GLint> texture_coord_indicies;
 	std::vector<GLuint> normal_indicies;
 
+	std::vector<GLfloat> colors; // for object manipulator drawing
+
 };
 #endif // END __OBJH__

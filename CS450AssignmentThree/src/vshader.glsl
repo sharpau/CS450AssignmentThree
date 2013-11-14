@@ -2,6 +2,7 @@
 
 in  vec4 vPosition;
 in  vec4 vNormal;
+in	vec4 vColor;
 out vec4 color;
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
@@ -11,6 +12,7 @@ uniform vec4 LightPosition;
 uniform float Shininess;
 
 // params for selection
+// flag: 0 == normal, 1 == selection, 2 == absolute coloring (manipulators)
 uniform int flag;
 uniform int selectionColorR;
 uniform int selectionColorG;
@@ -47,14 +49,17 @@ void main()
 
     gl_Position = Projection * ModelView * vPosition;
 
-    if(flag != 1) {
+    if(flag == 0) {
 		color = ambient + diffuse + specular;
 		color.a = 1.0;
 	} 
-	else {
+	else if(flag == 1) {
 		color.r = float(selectionColorR)/float(255);
 		color.g = float(selectionColorG)/float(255);
 		color.b = float(selectionColorB)/float(255);
 		color.a = float(selectionColorA)/float(255);
+	}
+	else if(flag == 2) {
+		color = vColor;
 	}
 }
