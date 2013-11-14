@@ -148,49 +148,8 @@ void build_menus(void) {
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
-// OpenGL initialization
 void
-init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
-{
-    // Load shaders and use the resulting shader program
-	// doing this ahead of time so we can use it for setup of special objects
-    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-    glUseProgram( program );
-	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
-	GLint normLoc = glGetAttribLocation( program, "vNormal" );
-	GLint colorLoc = glGetAttribLocation( program, "vColor" );
-
-
-#pragma region special_objects
-	// build the special objects not loaded by user
-	GROUND_QUAD->add_vertex( -5., 0., 5. );
-	GROUND_QUAD->add_vertex( -5., 0., -5. );
-	GROUND_QUAD->add_vertex( 5., 0., -5. );
-	GROUND_QUAD->add_vertex( 5., 0., 5. );
-	GROUND_QUAD->vertex_indicies.push_back( 0 );
-	GROUND_QUAD->vertex_indicies.push_back( 3 );
-	GROUND_QUAD->vertex_indicies.push_back( 2 );
-	GROUND_QUAD->vertex_indicies.push_back( 0 );
-	GROUND_QUAD->vertex_indicies.push_back( 2 );
-	GROUND_QUAD->vertex_indicies.push_back( 1 );
-	GROUND_QUAD->vertex_element_size = 3.;
-
-	GROUND_QUAD->add_normal( 0., 1., 0. );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_indicies.push_back( 0 );
-	GROUND_QUAD->normal_element_size = 3.;
-
-	GROUND_QUAD->load_data( );
-	//obj_data.push_back( GROUND_QUAD );
-	// I think these 'special objects' should not be part of our array.
-	// they are fundamentally different, drawn different, selection will be different, etc.
-	// so it'll only make the display loop insane to put them in the vector
-	// for instance the manipulators need constant colors, not shaded
-	
+init_manips(GLint vertLoc, GLint colorLoc) {
 	// line on x axis
 	manips->vertices.push_back(0);
 	manips->vertices.push_back(0);
@@ -267,8 +226,22 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
 	glEnableVertexAttribArray(colorLoc);
 	glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+}
 
-#pragma endregion
+// OpenGL initialization
+void
+init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
+{
+    // Load shaders and use the resulting shader program
+	// doing this ahead of time so we can use it for setup of special objects
+    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    glUseProgram( program );
+	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
+	GLint normLoc = glGetAttribLocation( program, "vNormal" );
+	GLint colorLoc = glGetAttribLocation( program, "vColor" );
+
+	// build the special objects not loaded by user
+	init_manips(vertLoc, colorLoc);	
 
     // Create a vertex array object
     GLuint *vaos;
