@@ -28,11 +28,8 @@ void main()
     vec3 E = normalize( -pos );
     vec3 H = normalize( L + E );  //halfway vector
 
-    // Transform vertex normal into eye coordinates
-    vec3 N = normalize( ModelView*vNormal ).xyz;
-
     //To correctly transform normals
-    // vec3      N = (normalize (transpose (inverse (ModelView))*vNormal).xyz
+    vec3      N = normalize( transpose(inverse( ModelView )) * vNormal ).xyz;
 
     // Compute terms in the illumination equation
     vec4 ambient = AmbientProduct;
