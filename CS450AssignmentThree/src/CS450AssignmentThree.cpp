@@ -539,7 +539,9 @@ motion(int x, int y) {
 	// these are just a rough idea of what's necessary and may not line up 100% with the actual math
 	GLfloat dx, dy, dz, currx, curry, currz, dtheta, theta, dscalex, dscaley, dscalez, scalex, scaley, scalez;
 	dx = dy = dz = dtheta = dscalex = dscaley = dscalez = .01;
-	mat4 translate_xyz, rotate_xyz, scale_xyz;
+	mat4 translate_xyz = Angel::identity();
+	mat4 rotate_xyz = Angel::identity();
+	mat4 scale_xyz = Angel::identity();
 	Obj *selected_obj = obj_data[0];
 	currx = selected_obj->model_view[3][0];
 	curry = selected_obj->model_view[3][1];
@@ -572,17 +574,20 @@ motion(int x, int y) {
 	case X_HELD:
 		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
 		Rotate = RotateX;
-		currx += dx;
+		dy = 0.;
+		dz = 0.;
 		break;
 	case Y_HELD:
 		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
 		Rotate = RotateY;
-		curry += dy;
+		dx = 0.;
+		dz = 0.;
 		break;
 	case Z_HELD:
 		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
 		Rotate = RotateZ;
-		currz += dz;
+		dx = 0.;
+		dy = 0.;
 		break; // BREAK Z_HELD
 	}
 	// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
@@ -591,7 +596,7 @@ motion(int x, int y) {
 	switch(gCurrentObjMode) {
 	case OBJ_TRANSLATE:
 		// take the world_transform component parallel to x/y/z, move object that far
-		translate_xyz = Translate( currx, curry, currz );
+		translate_xyz = Translate( dx, dy, dz );
 		break;
 	case OBJ_ROTATE:
 		// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
@@ -602,6 +607,12 @@ motion(int x, int y) {
 		scale_xyz = Scale( scalex, scaley, scalez );
 		break;
 	}
+	mat4 delta_model_view = translate_xyz * 
+		Translate(  selected_obj->model_view[3][0], selected_obj->model_view[3][1], selected_obj->model_view[3][2] ) * 
+		rotate_xyz * scale_xyz * Translate( -selected_obj->model_view[3][0], -selected_obj->model_view[3][1], -selected_obj->model_view[3][2] ) * 
+		selected_obj->model_view;
+	
+	selected_obj->model_view = delta_model_view;
 }
 
 //----------------------------------------------------------------------------
