@@ -607,12 +607,12 @@ motion(int x, int y) {
 		scale_xyz = Scale( scalex, scaley, scalez );
 		break;
 	}
-	mat4 delta_model_view = translate_xyz * 
+	/*mat4 delta_model_view = translate_xyz * 
 		Translate(  selected_obj->model_view[3][0], selected_obj->model_view[3][1], selected_obj->model_view[3][2] ) * 
 		rotate_xyz * scale_xyz * Translate( -selected_obj->model_view[3][0], -selected_obj->model_view[3][1], -selected_obj->model_view[3][2] ) * 
 		selected_obj->model_view;
 	
-	selected_obj->model_view = delta_model_view;
+	selected_obj->model_view = delta_model_view;*/
 }
 
 //----------------------------------------------------------------------------
