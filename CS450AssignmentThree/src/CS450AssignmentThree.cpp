@@ -23,7 +23,7 @@ using namespace std;
 const string DATA_DIRECTORY_PATH = "./Data/";
 
 Obj *GROUND_QUAD = new Obj();
-Obj *manips = new Obj();
+Obj *manips = new Obj(DATA_DIRECTORY_PATH + "axis.obj");
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -170,82 +170,37 @@ void build_menus(void) {
 
 void
 init_manips(GLint vertLoc, GLint colorLoc) {
-	// line on x axis
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(1);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-
-	// line on y axis
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(1);
-	manips->vertices.push_back(0);
-
-	// line on z axis
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(0);
-	manips->vertices.push_back(1);
-	manips->vertex_element_size = 3;
-
-	// 2 red points
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-
-	// 2 green points
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-
-	// 2 blue points
-	manips->colors.push_back(0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(0);
-	manips->colors.push_back(1.0);
-	manips->colors.push_back(1.0);
+	// already used constructor to load in from file
 
 	// setup vao and two vbos for manipulators
 	glGenVertexArrays(1, &manips->vao);
 	glBindVertexArray(manips->vao);
-	GLuint manips_buffer[2]; // 0 is vertices, 1 is colors
-	glGenBuffers(2, manips_buffer);
+	GLuint manips_buffer[6]; // 0 is vertices, 1 is colors
+	glGenBuffers(6, manips_buffer);
+
+	manips->data_soa.colors_stride = 4;
+	for(int i = 0; i < manips->data_soa.num_vertices; i++) {
+		manips->data_soa.colors.push_back(1.0);
+		manips->data_soa.colors.push_back(0.0);
+		manips->data_soa.colors.push_back(0.0);
+		manips->data_soa.colors.push_back(1.0);
+	}
+
 	// vertices
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->vertices.size(), manips->vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->data_soa.positions.size(), manips->data_soa.positions.data(), GL_STATIC_DRAW);
 	// colors
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->colors.size(), manips->colors.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * manips->data_soa.colors.size(), manips->data_soa.colors.data(), GL_STATIC_DRAW);
 
-	// do we need to use an old shader here without lighting, just colors??
-	// or just add colors to our current shader? <-- trying this
+	// color added to shader. only displays with flag == 2
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
 	glEnableVertexAttribArray(vertLoc);
-	glVertexAttribPointer(vertLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+	glVertexAttribPointer(vertLoc, manips->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 	glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
 	glEnableVertexAttribArray(colorLoc);
-	glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+	glVertexAttribPointer(colorLoc, manips->data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 }
 
 // OpenGL initialization
@@ -378,6 +333,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 }
 
 //----------------------------------------------------------------------------
+
 void
 mouse( int button, int state, int x, int y )
 {
@@ -420,7 +376,7 @@ mouse( int button, int state, int x, int y )
 	gFlag = 2;	// change flag to 2, for absolute coloring
 	glUniform1i(gSelectFlagLoc, gFlag);
 	glBindVertexArray(manips->vao);
-	glDrawArrays(GL_LINES, 0, manips->vertices.size());
+	glDrawArrays(GL_TRIANGLES, 0, manips->data_soa.num_vertices);
 
 	// this didn't need to be in the loop
 	glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
@@ -491,8 +447,7 @@ display( void )
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			glBindVertexArray(manips->vao);
-			glLineWidth(5.0f);
-			glDrawArrays(GL_LINES, 0, manips->vertices.size());
+			glDrawArrays(GL_TRIANGLES, 0, manips->data_soa.num_vertices);
 				
 			// back to normal rendering
 			gFlag = 0;
