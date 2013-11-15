@@ -506,8 +506,9 @@ mouse( int button, int state, int x, int y )
 	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
-	//glutSwapBuffers();
-	//cin.get();
+
+	/*glutSwapBuffers();
+	cin.get();*/
 }
 
 //----------------------------------------------------------------------------
@@ -530,7 +531,8 @@ motion(int x, int y) {
 
 	GLfloat delta = .01;
 	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
-
+	GLfloat scale_down = .99;
+	GLfloat scale_up = 1.01;
 	dx = dy = dz = .0;
 	dscalex = dscaley = dscalez = 1.;
 	dtheta = 0.;
@@ -593,9 +595,9 @@ motion(int x, int y) {
 					
 					if( delta_x < 0 )
 					{
-						dscalex = 1.1;
+						dscalex = scale_up;
 					} else if( delta_x > 0 ) {
-						dscalex = .9;
+						dscalex = scale_down;
 					}
 					break;
 
@@ -632,9 +634,9 @@ motion(int x, int y) {
 					
 					if( delta_y < 0 )
 					{
-						dscaley = .9;
+						dscaley = scale_down;
 					} else if( delta_y > 0 ) {
-						dscaley = 1.1;
+						dscaley = scale_up;
 					}
 					break;
 
@@ -670,9 +672,9 @@ motion(int x, int y) {
 					
 					if( delta_x < 0 )
 					{
-						dscalez = .9;
+						dscalez = scale_down;
 					} else if( delta_x > 0 ) {
-						dscalez = 1.1;
+						dscalez = scale_up;
 					}
 					break;
 
@@ -681,7 +683,7 @@ motion(int x, int y) {
 				break; // BREAK Z_HELD
 			}
 			translate_xyz = Translate( obj->translateXYZ[0][3] + dx, obj->translateXYZ[1][3] + dy, obj->translateXYZ[2][3] + dz );
-			scale_xyz = Scale( obj->translateXYZ[0][0] * dscalex, obj->translateXYZ[1][1] * dscaley, obj->translateXYZ[2][2] * dscalez );
+			scale_xyz = Scale( obj->scaleXYZ[0][0] * dscalex, obj->scaleXYZ[1][1] * dscaley, obj->scaleXYZ[2][2] * dscalez );
 
 			obj->translateXYZ = translate_xyz;
 			obj->scaleXYZ = scale_xyz;
