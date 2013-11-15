@@ -43,6 +43,10 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
+
+GLuint gProgram;
+GLint gVertLoc, gNormLoc, gColorLoc;
+
 // which manipulator is being dragged
 enum manip {
 	NO_MANIP_HELD,
@@ -69,6 +73,7 @@ obj_mode gCurrentObjMode = OBJ_TRANSLATE;
 camera_mode gCurrentCameraMode = CAMERA_TRANSLATE;
 
 enum menu_val {
+	ITEM_NEW_OBJ,
 	ITEM_OBJ_TRANSLATION,
 	ITEM_OBJ_ROTATION,
 	ITEM_SCALE,
@@ -106,9 +111,63 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 	return status;
 }
 
+
+// does all vao/vbo setup for obj_data[i]
+void
+setup_obj(int i) {
+	// Create a vertex array object
+	glGenVertexArrays(1, &obj_data[i]->vao);
+	glBindVertexArray(obj_data[i]->vao);
+
+	GLuint vbo;
+	glGenBuffers(1, &vbo);
+
+	// set up colors for selection
+	obj_data[i]->selectionR = i;
+	obj_data[i]->selectionG = i;
+	obj_data[i]->selectionB = i;
+	obj_data[i]->selectionA = 255; // only seems to work at 255
+		
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
+	GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
+	GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
+	GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
+	glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
+	glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
+		
+	
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
+	glEnableVertexAttribArray(gNormLoc);
+	glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
+}
+
 // menu callback
 void menu(int num){
 	switch(num) {
+	case ITEM_NEW_OBJ:
+		{
+			char buffer[256];
+			printf("Please enter .obj filename in data directory:\n");
+			cin.getline(buffer, 256);
+			printf("input was %s\n", buffer);
+
+			auto attempt = new Obj(DATA_DIRECTORY_PATH + buffer);
+			if(attempt->bad_file || !attempt->is_loaded) {
+				printf("Bad file selected, check file path\n");
+			}
+			else {
+				obj_data.push_back(attempt);
+
+				int i = obj_data.size() - 1;
+				
+				// for some reason only part of this loop can be put into a function. WTF
+				setup_obj(i);
+			}
+		}
+		break;
 	case ITEM_OBJ_TRANSLATION:
 		gCurrentObjMode = OBJ_TRANSLATE;
 		break;
@@ -162,14 +221,17 @@ void build_menus(void) {
 	glutAddMenuEntry("Dolly", ITEM_DOLLY);
 	
 	menu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("Load .obj File", ITEM_NEW_OBJ);
 	glutAddSubMenu("Object Transformation", obj_submenu_id);
 	glutAddSubMenu("Camera Transformation", camera_submenu_id);
  
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+
+
 void
-init_manips(GLint vertLoc, GLint colorLoc) {
+init_manips(void) {
 	for(int i = 0; i < 3; i++) {
 		manips[i] = Obj(DATA_DIRECTORY_PATH + "axis.obj");
 
@@ -198,132 +260,103 @@ init_manips(GLint vertLoc, GLint colorLoc) {
 
 		// color added to shader. only displays with flag == 2
 		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
-		glEnableVertexAttribArray(vertLoc);
-		glVertexAttribPointer(vertLoc, manips[i].data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+		glEnableVertexAttribArray(gVertLoc);
+		glVertexAttribPointer(gVertLoc, manips[i].data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
-		glEnableVertexAttribArray(colorLoc);
-		glVertexAttribPointer(colorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+		glEnableVertexAttribArray(gColorLoc);
+		glVertexAttribPointer(gColorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 	}
+
 }
 
 // OpenGL initialization
 void
-init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
+init(mat4 projection)
 {
     // Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-    glUseProgram( program );
-	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
-	GLint normLoc = glGetAttribLocation( program, "vNormal" );
-	GLint colorLoc = glGetAttribLocation( program, "vColor" );
+    gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    glUseProgram(gProgram);
+	gVertLoc = glGetAttribLocation(gProgram, "vPosition");
+	gNormLoc = glGetAttribLocation(gProgram, "vNormal");
+	gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
 	// build the special objects not loaded by user
-	init_manips(vertLoc, colorLoc);	
+	init_manips();	
 
-    // Create a vertex array object
-    GLuint *vaos;
-	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
-    glGenVertexArrays( obj_data.size(), vaos );
 	
-	GLuint *vbos;
-	vbos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
-	glGenBuffers( obj_data.size(), vbos );
 	
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
-		glBindVertexArray( vaos[i] );
-		obj_data[i]->vao = vaos[i];
-
-		// set up colors for selection
-		obj_data[i]->selectionR = i;
-		printf("Set red component to %d\n", obj_data[i]->selectionR);
-		obj_data[i]->selectionG=i;
-		obj_data[i]->selectionB=i;
-		obj_data[i]->selectionA=255; // only seems to work at 255
-		
-		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
-		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
-		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
-		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
-		GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
-		glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW );
-		glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data );
-		glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data );
-		
-		glEnableVertexAttribArray( vertLoc );
-		glVertexAttribPointer( vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		glEnableVertexAttribArray( normLoc );
-		glVertexAttribPointer( normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
-		int linked;
-		glGetProgramiv( program, GL_LINK_STATUS, &linked );
-		if( linked != GL_TRUE )
-		{
-			int maxLength;
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
-			maxLength = maxLength + 1;
-			GLchar *pLinkInfoLog = new GLchar[maxLength];
-			glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
-			cerr << *pLinkInfoLog << endl;
-		}
+		// for some reason only part of this loop can be put into a function. WTF
+		setup_obj(i);
 	}
+
+	
+	int linked;
+	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
+	if( linked != GL_TRUE )
+	{
+		int maxLength;
+		glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
+		maxLength = maxLength + 1;
+		GLchar *pLinkInfoLog = new GLchar[maxLength];
+		glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
+		cerr << *pLinkInfoLog << endl;
+	}
+
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 1.25, 1., 1.0 );
-    color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
-    color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
-    color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
+    point4 light_position(0., 1.25, 1., 1.0);
+    color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+    color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+    color4 light_specular(1.0, 1.0, 1.0, 1.0);
 
-    color4 material_ambient( 1.0, 0.0, 1.0, 1.0 );
-    color4 material_diffuse( 1.0, 0.8, 0.0, 1.0 );
-    color4 material_specular( 1.0, 0.8, 0.0, 1.0 );
+    color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+    color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+    color4 material_specular(1.0, 0.8, 0.0, 1.0);
     float  material_shininess = 100.0;
 
     color4 ambient_product = light_ambient * material_ambient;
     color4 diffuse_product = light_diffuse * material_diffuse;
     color4 specular_product = light_specular * material_specular;
 
-    glUniform4fv( glGetUniformLocation(program, "AmbientProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "AmbientProduct"),
 		  1, ambient_product );
-    glUniform4fv( glGetUniformLocation(program, "DiffuseProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "DiffuseProduct"),
 		  1, diffuse_product );
-    glUniform4fv( glGetUniformLocation(program, "SpecularProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "SpecularProduct"),
 		  1, specular_product );
 
-    glUniform4fv( glGetUniformLocation(program, "LightPosition"),
+    glUniform4fv( glGetUniformLocation(gProgram, "LightPosition"),
 		  1, light_position );
 
-    glUniform1f( glGetUniformLocation(program, "Shininess"),
+    glUniform1f( glGetUniformLocation(gProgram, "Shininess"),
 		 material_shininess );
 
 	
 	//Set up selection colors and a gFlag -- copied from example
-	gSelectColorRLoc = glGetUniformLocation(program,"selectionColorR");
-	gSelectColorGLoc = glGetUniformLocation(program,"selectionColorG");
-	gSelectColorBLoc = glGetUniformLocation(program,"selectionColorB");
-	gSelectColorALoc = glGetUniformLocation(program,"selectionColorA");
+	gSelectColorRLoc = glGetUniformLocation(gProgram,"selectionColorR");
+	gSelectColorGLoc = glGetUniformLocation(gProgram,"selectionColorG");
+	gSelectColorBLoc = glGetUniformLocation(gProgram,"selectionColorB");
+	gSelectColorALoc = glGetUniformLocation(gProgram,"selectionColorA");
 	glUniform1i(gSelectColorRLoc, gSelectionColorR);
 	glUniform1i(gSelectColorGLoc, gSelectionColorG);
 	glUniform1i(gSelectColorBLoc, gSelectionColorB);
 	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
-	gSelectFlagLoc = glGetUniformLocation(program, "flag");
+	gSelectFlagLoc = glGetUniformLocation(gProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
 
 
-    gModelViewLoc = glGetUniformLocation( program, "ModelView" );
-    gProjectionLoc = glGetUniformLocation( program, "Projection" );
+    gModelViewLoc = glGetUniformLocation(gProgram, "ModelView");
+    gProjectionLoc = glGetUniformLocation(gProgram, "Projection");
 
-
-
-    mat4 p = Perspective(90.0, 1.0, 0.1, 4.0);
-
-    point4  eye( in_eye[0], in_eye[1], in_eye[2], 1.0);
-    point4  at( in_at[0], in_at[1], in_at[2], 1.0 );
-    vec4    up( in_up[0], in_up[1], in_up[2], 0.0 );
-
+    point4  eye(0., 0., 1., 1.);
+    point4  at(0., 0., 0., 1.);
+    vec4    up(0., 1., 0., 0.);
 
     gViewTransform = LookAt( eye, at, up );
 	gModelView = gViewTransform * Angel::identity();
@@ -335,12 +368,12 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 	}
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
-    glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, gViewTransform );
-    glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, p );
+    glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
+    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
 
 
-    glEnable( GL_DEPTH_TEST );
-    glClearColor( 1.0, 1.0, 1.0, 1.0 );
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(1.0, 1.0, 1.0, 1.0);
 }
 
 //----------------------------------------------------------------------------
@@ -474,9 +507,12 @@ display( void )
 		glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, gModelView );
 		if(obj->selected == true) {
 			// draw manipulators here
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			for(int i = 0; i < 3; i++) {
+				// need to rotate 2 manips TODO
+				// need to rotate 2 manips TODO
 				glBindVertexArray(manips[i].vao);
 				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
 			}
@@ -489,14 +525,14 @@ display( void )
 
 			// wireframe
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units
+			glPolygonOffset(1.0, 2); //Try 1.0 and 2 for factor and units
 
 		}
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		glBindVertexArray( obj->vao );
-		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.num_vertices );
+		glBindVertexArray(obj->vao);
+		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
 	}
     glutSwapBuffers();
 }
@@ -690,48 +726,46 @@ keyboard( unsigned char key, int x, int y )
 
 int main(int argc, char** argv)
 {
-	string data_filename = "test.scn";
-	string application_info = "CS450AssignmentThree: ";
+	string application_info = "CS450AssignmentThree";
 	string *window_title = new string;
-	GLfloat eye_position[] = { 0., 0., 1., 1.};
-	GLfloat at_position[] = { 0., 0., 0., 1. };
-	GLfloat up_vector[] = { 0., 1., 0., 0. };
 
-	if(argc != 11) {
-		cerr << "USAGE: Expected 10 arguments but found '" << (argc - 1) << "'" << endl;
-		cerr << "CS450AssignmentTwo SCENE_FILENAME FROM_X FROM_Y FROM_Z AT_X AT_Y AT_Z UP_X UP_Z UP_Y" << endl;
-		cerr << "SCENE_FILENAME: A .scn filename existing in the ./CS450AssignmentTwo/Data/ directory." << endl;
-		cerr << "FROM_X, FROM_Y, FROM_Z*: Floats passed to the LookAt function representing the point in the scene of the eye." << endl;
-		cerr << "AT_X, AT_Y, AT_Z*: Floats passed to the LookAt function representing the point in the scene where the eye is looking." << endl;
-		cerr << "UP_X, UP_Y, UP_Z*: Floats passed to the LookAt function representing the vector that describes the up direction within scene for the eye." << endl;
-		cerr << "*These points and vectors will not be converted to a homogenous coordinate system." << endl;
+	string usage = "Usage:\nCS450AssignmentThree O LEFT RIGHT BOTTOM TOP NEAR FAR\nwhere LEFT RIGHT BOTTOM TOP NEAR and FAR are floating point values that specify the \
+orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is the field of view in degrees, and NEAR and FAR are floating point values that specify the view volume in perspective.\n";
+	bool bad_input = false;
+
+	if(argc < 5) {
+		bad_input = true;
+		cerr << "Not enough arguments.\n";
+	}
+	
+	bool o = false;
+	bool p = false;
+	o = !string("O").compare(argv[1]);
+	p = !string("P").compare(argv[1]);
+	
+	if(!o && !p) {
+		bad_input = true;
+		cerr << "1st parameter was neither 'O' nor 'P'.\n";
+	}
+	else if(o && argc != 8 || p && argc != 5) {
+		bad_input = true;
+		cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
+	}
+	
+	mat4 projection;
+	if(o) {
+		projection = Ortho(atof(argv[2]), atof(argv[3]), atof(argv[4]), atof(argv[5]), atof(argv[6]), atof(argv[7]));
+	}
+	else if(p) {
+		projection = Perspective(atof(argv[2]), 1.0f, atof(argv[3]), atof(argv[4]));
+	}
+
+	if(bad_input) {
+		cerr << usage;
+		cin.get();
 		return -1;
 	}
-	data_filename = argv[1];
 
-	eye_position[0] = atof(argv[2]);
-	eye_position[1] = atof(argv[3]);
-	eye_position[2] = atof(argv[4]);
-
-	at_position[0] = atof(argv[5]);
-	at_position[1] = atof(argv[6]);
-	at_position[2] = atof(argv[7]);
-
-	up_vector[0] = atof(argv[8]);
-	up_vector[1] = atof(argv[9]);
-	up_vector[2] = atof(argv[10]);
-
-	cout << "Loading scene file: '" << data_filename.c_str() << "'" << endl;
-	cout << "Eye position: {" << eye_position[0] << ", " << eye_position[1] << ", " << eye_position[2] << "}" << endl;
-	cout << "At position: {" << at_position[0] << ", " << at_position[1] << ", " << at_position[2] << "}" << endl;
-	cout << "Up vector: {" << up_vector[0] << ", " << up_vector[1] << ", " << up_vector[2] << "}" << endl;
-	
-	SceneLoader *input_scene = new SceneLoader( DATA_DIRECTORY_PATH );
-	input_scene->load_file( data_filename );
-	for( auto tmp : input_scene->loaded_objs )
-	{
-		obj_data.push_back(tmp);
-	}
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -740,10 +774,10 @@ int main(int argc, char** argv)
     glutInitContextVersion (3, 2);
     glutInitContextFlags (GLUT_FORWARD_COMPATIBLE);
 #endif
+
 	window_title->append(application_info);
-	window_title->append(data_filename);
-    glutInitWindowSize(512, 512);
-    glutInitWindowPosition(500, 300);
+	glutInitWindowSize(512, 512);
+	glutInitWindowPosition(500, 300);
     glutCreateWindow(window_title->c_str());
     printf("%s\n%s\n", glGetString(GL_RENDERER), glGetString(GL_VERSION));
 
@@ -752,7 +786,7 @@ int main(int argc, char** argv)
     glewInit();
 #endif
 
-	init(eye_position, at_position, up_vector);
+	init(projection);
 
     //NOTE:  callbacks must go after window is created!!!
 	build_menus();
