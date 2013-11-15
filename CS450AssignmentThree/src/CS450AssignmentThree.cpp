@@ -43,6 +43,10 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
+
+GLuint gProgram;
+GLint gVertLoc, gNormLoc, gColorLoc;
+
 // which manipulator is being dragged
 enum manip {
 	NO_MANIP_HELD,
@@ -187,7 +191,7 @@ void build_menus(void) {
 }
 
 void
-init_manips(GLint vertLoc, GLint colorLoc) {
+init_manips(GLint gVertLoc, GLint gColorLoc) {
 	for(int i = 0; i < 3; i++) {
 		manips[i] = Obj(DATA_DIRECTORY_PATH + "axis.obj");
 
@@ -216,12 +220,54 @@ init_manips(GLint vertLoc, GLint colorLoc) {
 
 		// color added to shader. only displays with flag == 2
 		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
-		glEnableVertexAttribArray(vertLoc);
-		glVertexAttribPointer(vertLoc, manips[i].data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+		glEnableVertexAttribArray(gVertLoc);
+		glVertexAttribPointer(gVertLoc, manips[i].data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[1]);
-		glEnableVertexAttribArray(colorLoc);
-		glVertexAttribPointer(colorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+		glEnableVertexAttribArray(gColorLoc);
+		glVertexAttribPointer(gColorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+	}
+}
+
+// does all vao/vbo setup for obj_data[i]
+void
+setup_obj(int i) {
+	// Create a vertex array object
+	glGenVertexArrays(1, &obj_data[i]->vao);
+	glBindVertexArray(obj_data[i]->vao);
+
+	GLuint vbo;
+	glGenBuffers(1, &vbo);
+
+	// set up colors for selection
+	obj_data[i]->selectionR = i;
+	obj_data[i]->selectionG = i;
+	obj_data[i]->selectionB = i;
+	obj_data[i]->selectionA = 255; // only seems to work at 255
+		
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
+	GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
+	GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
+	GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
+	glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
+	glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
+		
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
+	glEnableVertexAttribArray(gNormLoc);
+	glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
+	int linked;
+	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
+	if( linked != GL_TRUE )
+	{
+		int maxLength;
+		glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
+		maxLength = maxLength + 1;
+		GLchar *pLinkInfoLog = new GLchar[maxLength];
+		glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
+		cerr << *pLinkInfoLog << endl;
 	}
 }
 
@@ -231,37 +277,37 @@ init(mat4 projection)
 {
     // Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-    glUseProgram( program );
-	GLint vertLoc = glGetAttribLocation(program, "vPosition");
-	GLint normLoc = glGetAttribLocation(program, "vNormal");
-	GLint colorLoc = glGetAttribLocation(program, "vColor");
+    GLuint gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    glUseProgram(gProgram);
+	GLint gVertLoc = glGetAttribLocation(gProgram, "vPosition");
+	GLint gNormLoc = glGetAttribLocation(gProgram, "vNormal");
+	GLint gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
 	// build the special objects not loaded by user
-	init_manips(vertLoc, colorLoc);	
+	init_manips(gVertLoc, gColorLoc);	
 
-    // Create a vertex array object
-    GLuint *vaos;
-	vaos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
-    glGenVertexArrays( obj_data.size(), vaos );
 	
-	GLuint *vbos;
-	vbos = (GLuint *) malloc( sizeof(GLuint) * obj_data.size() );
-	glGenBuffers( obj_data.size(), vbos );
 	
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
-		glBindVertexArray( vaos[i] );
-		obj_data[i]->vao = vaos[i];
+		// try using this instead
+		//setup_obj(i);
+
+
+		// Create a vertex array object
+		glGenVertexArrays(1, &obj_data[i]->vao);
+		glBindVertexArray(obj_data[i]->vao);
+
+		GLuint vbo;
+		glGenBuffers(1, &vbo);
 
 		// set up colors for selection
 		obj_data[i]->selectionR = i;
-		printf("Set red component to %d\n", obj_data[i]->selectionR);
-		obj_data[i]->selectionG=i;
-		obj_data[i]->selectionB=i;
-		obj_data[i]->selectionA=255; // only seems to work at 255
+		obj_data[i]->selectionG = i;
+		obj_data[i]->selectionB = i;
+		obj_data[i]->selectionA = 255; // only seems to work at 255
 		
-		glBindBuffer(GL_ARRAY_BUFFER, vbos[i]);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
 		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
 		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
@@ -270,19 +316,19 @@ init(mat4 projection)
 		glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
 		glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
 		
-		glEnableVertexAttribArray(vertLoc);
-		glVertexAttribPointer(vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
-		glEnableVertexAttribArray(normLoc);
-		glVertexAttribPointer(normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
+		glEnableVertexAttribArray(gVertLoc);
+		glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
+		glEnableVertexAttribArray(gNormLoc);
+		glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
 		int linked;
-		glGetProgramiv(program, GL_LINK_STATUS, &linked);
+		glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
 		if( linked != GL_TRUE )
 		{
 			int maxLength;
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+			glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
 			maxLength = maxLength + 1;
 			GLchar *pLinkInfoLog = new GLchar[maxLength];
-			glGetProgramInfoLog(program, maxLength, &maxLength, pLinkInfoLog);
+			glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
 			cerr << *pLinkInfoLog << endl;
 		}
 	}
@@ -303,36 +349,36 @@ init(mat4 projection)
     color4 diffuse_product = light_diffuse * material_diffuse;
     color4 specular_product = light_specular * material_specular;
 
-    glUniform4fv( glGetUniformLocation(program, "AmbientProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "AmbientProduct"),
 		  1, ambient_product );
-    glUniform4fv( glGetUniformLocation(program, "DiffuseProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "DiffuseProduct"),
 		  1, diffuse_product );
-    glUniform4fv( glGetUniformLocation(program, "SpecularProduct"),
+    glUniform4fv( glGetUniformLocation(gProgram, "SpecularProduct"),
 		  1, specular_product );
 
-    glUniform4fv( glGetUniformLocation(program, "LightPosition"),
+    glUniform4fv( glGetUniformLocation(gProgram, "LightPosition"),
 		  1, light_position );
 
-    glUniform1f( glGetUniformLocation(program, "Shininess"),
+    glUniform1f( glGetUniformLocation(gProgram, "Shininess"),
 		 material_shininess );
 
 	
 	//Set up selection colors and a gFlag -- copied from example
-	gSelectColorRLoc = glGetUniformLocation(program,"selectionColorR");
-	gSelectColorGLoc = glGetUniformLocation(program,"selectionColorG");
-	gSelectColorBLoc = glGetUniformLocation(program,"selectionColorB");
-	gSelectColorALoc = glGetUniformLocation(program,"selectionColorA");
+	gSelectColorRLoc = glGetUniformLocation(gProgram,"selectionColorR");
+	gSelectColorGLoc = glGetUniformLocation(gProgram,"selectionColorG");
+	gSelectColorBLoc = glGetUniformLocation(gProgram,"selectionColorB");
+	gSelectColorALoc = glGetUniformLocation(gProgram,"selectionColorA");
 	glUniform1i(gSelectColorRLoc, gSelectionColorR);
 	glUniform1i(gSelectColorGLoc, gSelectionColorG);
 	glUniform1i(gSelectColorBLoc, gSelectionColorB);
 	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
-	gSelectFlagLoc = glGetUniformLocation(program, "flag");
+	gSelectFlagLoc = glGetUniformLocation(gProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
 
 
-    gModelViewLoc = glGetUniformLocation(program, "ModelView");
-    gProjectionLoc = glGetUniformLocation(program, "Projection");
+    gModelViewLoc = glGetUniformLocation(gProgram, "ModelView");
+    gProjectionLoc = glGetUniformLocation(gProgram, "Projection");
 
     point4  eye(0., 0., 1., 1.);
     point4  at(0., 0., 0., 1.);
