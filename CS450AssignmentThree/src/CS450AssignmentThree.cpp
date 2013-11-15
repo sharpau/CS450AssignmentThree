@@ -22,8 +22,13 @@ using namespace std;
 // globals
 const string DATA_DIRECTORY_PATH = "./Data/";
 
-Obj *GROUND_QUAD = new Obj();
+// special objects
+Obj grid;
 Obj manips[3];
+
+// all loaded objects
+vector<Obj*> obj_data;
+
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -32,7 +37,6 @@ typedef Angel::vec4  point4;
 GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
 GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
-vector<Obj*> obj_data;
 mat4  gViewTransform;
 mat4 gModelView;
 // copied from example
@@ -73,6 +77,7 @@ obj_mode gCurrentObjMode = OBJ_TRANSLATE;
 camera_mode gCurrentCameraMode = CAMERA_TRANSLATE;
 
 enum menu_val {
+	ITEM_RESET,
 	ITEM_NEW_OBJ,
 	ITEM_OBJ_TRANSLATION,
 	ITEM_OBJ_ROTATION,
@@ -147,6 +152,10 @@ setup_obj(int i) {
 // menu callback
 void menu(int num){
 	switch(num) {
+	case ITEM_RESET:
+		obj_data.clear();
+		// TODO issue #7: Padraic reset camera here
+		break;
 	case ITEM_NEW_OBJ:
 		{
 			char buffer[256];
@@ -162,8 +171,6 @@ void menu(int num){
 				obj_data.push_back(attempt);
 
 				int i = obj_data.size() - 1;
-				
-				// for some reason only part of this loop can be put into a function. WTF
 				setup_obj(i);
 			}
 		}
@@ -224,11 +231,67 @@ void build_menus(void) {
 	glutAddMenuEntry("Load .obj File", ITEM_NEW_OBJ);
 	glutAddSubMenu("Object Transformation", obj_submenu_id);
 	glutAddSubMenu("Camera Transformation", camera_submenu_id);
+	glutAddMenuEntry("Reset All", ITEM_RESET);
  
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+void
+init_grid(void) {
+	// load in vertices for lines
+	grid.data_soa.positions_stride = 3;
+	for(int i = -10; i < 10; i++) {
+		// line on x = i
+		grid.data_soa.positions.push_back(i);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(-10);
 
+		grid.data_soa.positions.push_back(i);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(10);
+
+		// line on y = i
+		grid.data_soa.positions.push_back(-10);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(i);
+
+		grid.data_soa.positions.push_back(10);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(i);
+	}
+	grid.data_soa.num_vertices = grid.data_soa.positions.size() / grid.data_soa.positions_stride;
+
+	// setup vao and two vbos for manipulators
+	glGenVertexArrays(1, &grid.vao);
+	glBindVertexArray(grid.vao);
+	GLuint grid_buffer[2]; // 0 is vertices, 1 is colors
+	glGenBuffers(2, grid_buffer);
+
+	grid.data_soa.colors_stride = 4;
+	for(int j = 0; j < grid.data_soa.num_vertices; j++) {
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(1.0);
+	}
+		
+		
+	// vertices
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * grid.data_soa.positions.size(), grid.data_soa.positions.data(), GL_STATIC_DRAW);
+	// colors
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * grid.data_soa.colors.size(), grid.data_soa.colors.data(), GL_STATIC_DRAW);
+
+	// color added to shader. only displays with flag == 2
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[0]);
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, grid.data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[1]);
+	glEnableVertexAttribArray(gColorLoc);
+	glVertexAttribPointer(gColorLoc, grid.data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+}
 
 void
 init_manips(void) {
@@ -292,6 +355,7 @@ init(mat4 projection)
 	gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
 	// build the special objects not loaded by user
+	init_grid();
 	init_manips();	
 
 	for( int i = 0; i < obj_data.size(); i++ )
@@ -385,6 +449,17 @@ init(mat4 projection)
 void
 draw(bool selection = false) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+	if(!selection) {
+		mat4 rot = grid.rotateX * grid.rotateY * grid.rotateZ;
+		grid.model_view = gViewTransform * (grid.translateXYZ * (grid.scaleXYZ * rot));
+		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, grid.model_view);
+		// draw ground grid
+		glBindVertexArray(grid.vao);
+		glDrawArrays(GL_LINES, 0, grid.data_soa.num_vertices);
+	}
+
+	// draw user objects and manips
 	for( auto obj : obj_data )
 	{
 		//Normal render so set selection Flag to 0
@@ -736,6 +811,39 @@ keyboard( unsigned char key, int x, int y )
 
 //----------------------------------------------------------------------------
 
+
+// initial view params
+bool ortho;
+vector<string> argv_copy;
+
+// This is the most complete version.  Does not assume square aspect ratio
+void myReshape2(int w, int h)
+{
+	glViewport(0,0,w,h);
+	float ar = (float)w/(float)h;
+
+	//printf("w = %d, h = %d, ar = %f\n", w, h, ar);
+
+	mat4 projection;
+
+	// starting aspect ratio is 1.0. update it
+	if(ortho) {
+		if( ar < 1.0) { // (w <= h ){ //taller
+			//glOrtho(vl, vr, vl * (GLfloat) h / (GLfloat) w,	vr * (GLfloat) h / (GLfloat) w, 0.1,10.0);
+			projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[2].c_str()) * (GLfloat)h / (GLfloat)w, atof(argv_copy[3].c_str()) * (GLfloat)h / (GLfloat)w, atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
+		}
+		else { //wider
+			//glOrtho(vb * (GLfloat) w / (GLfloat) h, vt * (GLfloat) w / (GLfloat) h, vb, vt,0.1,10.0);
+			projection = Ortho(atof(argv_copy[4].c_str()) * (GLfloat) w / (GLfloat) h, atof(argv_copy[5].c_str()) * (GLfloat)w / (GLfloat)h, atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
+		}
+	}
+	else {
+		projection = Perspective(atof(argv_copy[2].c_str()), ar, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
+	}
+	
+    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
+}
+
 int main(int argc, char** argv)
 {
 	string application_info = "CS450AssignmentThree";
@@ -763,13 +871,19 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		bad_input = true;
 		cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
 	}
+
+	for(int i = 0; i < argc; i++) {
+		argv_copy.push_back(string(argv[i]));
+	}
 	
 	mat4 projection;
 	if(o) {
-		projection = Ortho(atof(argv[2]), atof(argv[3]), atof(argv[4]), atof(argv[5]), atof(argv[6]), atof(argv[7]));
+		ortho = true;
+		projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
 	}
 	else if(p) {
-		projection = Perspective(atof(argv[2]), 1.0f, atof(argv[3]), atof(argv[4]));
+		ortho = false;
+		projection = Perspective(atof(argv_copy[2].c_str()), 1.0f, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
 	}
 
 	if(bad_input) {
@@ -777,6 +891,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		cin.get();
 		return -1;
 	}
+
 
 	glutInit(&argc, argv);
 #ifdef __APPLE__
@@ -801,6 +916,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 	init(projection);
 
     //NOTE:  callbacks must go after window is created!!!
+	glutReshapeFunc(myReshape2);
 	build_menus();
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
