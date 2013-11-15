@@ -127,7 +127,7 @@ setup_obj(int i) {
 	obj_data[i]->selectionG = i;
 	obj_data[i]->selectionB = i;
 	obj_data[i]->selectionA = 255; // only seems to work at 255
-		
+	obj_data[i]->model_view = gViewTransform;
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
 	GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
@@ -399,7 +399,7 @@ draw(bool selection = false) {
 			for(int i = 0; i < 3; i++) {
 				// manips: should have 1 rotation ever. also always use their object's translate.
 				// and should use the gModelView as everything else does
-				mat4 transform = gModelView * obj->translateXYZ * manips[i].rotateXYZ; // accumulation shenanigans
+				mat4 transform = gViewTransform * obj->translateXYZ * manips[i].rotateXYZ; // accumulation shenanigans
 				glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
 				
 
@@ -419,8 +419,8 @@ draw(bool selection = false) {
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		mat4 transform = gModelView * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
-		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
+		obj->model_view = gViewTransform * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
+		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, obj->model_view);
 
 		glBindVertexArray(obj->vao);
 		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
@@ -658,9 +658,9 @@ motion(int x, int y) {
 			translate_xyz = Translate( dx, dy, dz );
 			scale_xyz = Scale( dscalex, dscaley, dscalez );
 
-			obj->translateXYZ = translate_xyz;
-			obj->rotateXYZ = rotate_xyz;
-			obj->scaleXYZ = scale_xyz;
+			obj->translateXYZ = obj->translateXYZ + translate_xyz;
+			obj->rotateXYZ = obj->rotateXYZ * rotate_xyz;
+			obj->scaleXYZ = obj->scaleXYZ + scale_xyz;
 		}
 	}
 }
