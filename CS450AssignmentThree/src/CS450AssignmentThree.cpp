@@ -704,6 +704,37 @@ keyboard( unsigned char key, int x, int y )
 
 //----------------------------------------------------------------------------
 
+
+// initial view params
+bool ortho;
+vector<string> argv_copy;
+
+// This is the most complete version.  Does not assume square aspect ratio
+void myReshape2(int w, int h)
+{
+	glViewport(0,0,w,h);
+	float ar = w/h;
+
+	mat4 projection;
+
+	// starting aspect ratio is 1.0. update it
+	if(ortho) {
+		if( ar < 1.0) { // (w <= h ){ //taller
+			//glOrtho(vl, vr, vl * (GLfloat) h / (GLfloat) w,	vr * (GLfloat) h / (GLfloat) w, 0.1,10.0);
+			projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[2].c_str()) * (GLfloat)h / (GLfloat)w, atof(argv_copy[3].c_str()) * (GLfloat)h / (GLfloat)w, atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
+		}
+		else { //wider
+			//glOrtho(vb * (GLfloat) w / (GLfloat) h, vt * (GLfloat) w / (GLfloat) h, vb, vt,0.1,10.0);
+			projection = Ortho(atof(argv_copy[4].c_str()) * (GLfloat) w / (GLfloat) h, atof(argv_copy[5].c_str()) * (GLfloat)w / (GLfloat)h, atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
+		}
+	}
+	else {
+		projection = Perspective(atof(argv_copy[2].c_str()), ar, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
+	}
+	
+    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
+}
+
 int main(int argc, char** argv)
 {
 	string application_info = "CS450AssignmentThree";
@@ -731,13 +762,19 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		bad_input = true;
 		cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
 	}
+
+	for(int i = 0; i < argc; i++) {
+		argv_copy.push_back(string(argv[i]));
+	}
 	
 	mat4 projection;
 	if(o) {
-		projection = Ortho(atof(argv[2]), atof(argv[3]), atof(argv[4]), atof(argv[5]), atof(argv[6]), atof(argv[7]));
+		ortho = true;
+		projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
 	}
 	else if(p) {
-		projection = Perspective(atof(argv[2]), 1.0f, atof(argv[3]), atof(argv[4]));
+		ortho = false;
+		projection = Perspective(atof(argv_copy[2].c_str()), 1.0f, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
 	}
 
 	if(bad_input) {
@@ -745,6 +782,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		cin.get();
 		return -1;
 	}
+
 
 	glutInit(&argc, argv);
 #ifdef __APPLE__
@@ -769,6 +807,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 	init(projection);
 
     //NOTE:  callbacks must go after window is created!!!
+	glutReshapeFunc(myReshape2);
 	build_menus();
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
