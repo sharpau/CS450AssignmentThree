@@ -111,6 +111,39 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 	return status;
 }
 
+
+// does all vao/vbo setup for obj_data[i]
+void
+setup_obj(int i) {
+	// Create a vertex array object
+	glGenVertexArrays(1, &obj_data[i]->vao);
+	glBindVertexArray(obj_data[i]->vao);
+
+	GLuint vbo;
+	glGenBuffers(1, &vbo);
+
+	// set up colors for selection
+	obj_data[i]->selectionR = i;
+	obj_data[i]->selectionG = i;
+	obj_data[i]->selectionB = i;
+	obj_data[i]->selectionA = 255; // only seems to work at 255
+		
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
+	GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
+	GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
+	GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
+	glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
+	glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
+		
+	
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
+	glEnableVertexAttribArray(gNormLoc);
+	glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
+}
+
 // menu callback
 void menu(int num){
 	switch(num) {
@@ -127,6 +160,11 @@ void menu(int num){
 			}
 			else {
 				obj_data.push_back(attempt);
+
+				int i = obj_data.size() - 1;
+				
+				// for some reason only part of this loop can be put into a function. WTF
+				setup_obj(i);
 			}
 		}
 		break;
@@ -190,8 +228,10 @@ void build_menus(void) {
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+
+
 void
-init_manips(GLint gVertLoc, GLint gColorLoc) {
+init_manips(void) {
 	for(int i = 0; i < 3; i++) {
 		manips[i] = Obj(DATA_DIRECTORY_PATH + "axis.obj");
 
@@ -227,37 +267,33 @@ init_manips(GLint gVertLoc, GLint gColorLoc) {
 		glEnableVertexAttribArray(gColorLoc);
 		glVertexAttribPointer(gColorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 	}
+
 }
 
-// does all vao/vbo setup for obj_data[i]
+// OpenGL initialization
 void
-setup_obj(int i) {
-	// Create a vertex array object
-	glGenVertexArrays(1, &obj_data[i]->vao);
-	glBindVertexArray(obj_data[i]->vao);
+init(mat4 projection)
+{
+    // Load shaders and use the resulting shader program
+	// doing this ahead of time so we can use it for setup of special objects
+    gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    glUseProgram(gProgram);
+	gVertLoc = glGetAttribLocation(gProgram, "vPosition");
+	gNormLoc = glGetAttribLocation(gProgram, "vNormal");
+	gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
+	// build the special objects not loaded by user
+	init_manips();	
 
-	// set up colors for selection
-	obj_data[i]->selectionR = i;
-	obj_data[i]->selectionG = i;
-	obj_data[i]->selectionB = i;
-	obj_data[i]->selectionA = 255; // only seems to work at 255
-		
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
-	GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
-	GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
-	GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
-	glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
-	glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
-		
-	glEnableVertexAttribArray(gVertLoc);
-	glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
-	glEnableVertexAttribArray(gNormLoc);
-	glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
+	
+	
+	for( int i = 0; i < obj_data.size(); i++ )
+	{
+		// for some reason only part of this loop can be put into a function. WTF
+		setup_obj(i);
+	}
+
+	
 	int linked;
 	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
 	if( linked != GL_TRUE )
@@ -269,69 +305,7 @@ setup_obj(int i) {
 		glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
 		cerr << *pLinkInfoLog << endl;
 	}
-}
 
-// OpenGL initialization
-void
-init(mat4 projection)
-{
-    // Load shaders and use the resulting shader program
-	// doing this ahead of time so we can use it for setup of special objects
-    GLuint gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-    glUseProgram(gProgram);
-	GLint gVertLoc = glGetAttribLocation(gProgram, "vPosition");
-	GLint gNormLoc = glGetAttribLocation(gProgram, "vNormal");
-	GLint gColorLoc = glGetAttribLocation(gProgram, "vColor");
-
-	// build the special objects not loaded by user
-	init_manips(gVertLoc, gColorLoc);	
-
-	
-	
-	for( int i = 0; i < obj_data.size(); i++ )
-	{
-		// try using this instead
-		//setup_obj(i);
-
-
-		// Create a vertex array object
-		glGenVertexArrays(1, &obj_data[i]->vao);
-		glBindVertexArray(obj_data[i]->vao);
-
-		GLuint vbo;
-		glGenBuffers(1, &vbo);
-
-		// set up colors for selection
-		obj_data[i]->selectionR = i;
-		obj_data[i]->selectionG = i;
-		obj_data[i]->selectionB = i;
-		obj_data[i]->selectionA = 255; // only seems to work at 255
-		
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
-		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
-		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
-		GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
-		glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
-		glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
-		
-		glEnableVertexAttribArray(gVertLoc);
-		glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
-		glEnableVertexAttribArray(gNormLoc);
-		glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
-		int linked;
-		glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
-		if( linked != GL_TRUE )
-		{
-			int maxLength;
-			glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
-			maxLength = maxLength + 1;
-			GLchar *pLinkInfoLog = new GLchar[maxLength];
-			glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
-			cerr << *pLinkInfoLog << endl;
-		}
-	}
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
