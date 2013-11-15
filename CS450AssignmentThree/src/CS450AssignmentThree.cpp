@@ -412,37 +412,15 @@ mouse( int button, int state, int x, int y )
 		glUniform1i(gSelectColorALoc,gSelectionColorA);
 		glUniform1i(gSelectFlagLoc, gFlag);
 
-		
-		//glUniformMatrix4fv(gModelViewLoc, 1, false, obj_data[i]->model_view);
-
 		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
-		glDrawArrays( GL_TRIANGLES, 0, obj_data[i]->data_soa.positions.size() / obj_data[i]->data_soa.positions_stride );
+		glDrawArrays(GL_TRIANGLES, 0, obj_data[i]->data_soa.num_vertices);
 	}
 
 	// check if a manip was clicked
 	gFlag = 2;	// change flag to 2, for absolute coloring
 	glUniform1i(gSelectFlagLoc, gFlag);
 	for(int i = 0; i < 3; i++) {
-		mat4 rot = manips[i].model_view;
-
-		// default obj points up y axis
-		if(i == 0) {
-			rot = Angel::RotateZ(90.0f) * rot;
-		}
-		else if(i == 2) {
-			rot = Angel::RotateX(90.0f) * rot;
-		}
-				
-		// put rot in as model view matrix
-
-		// try uncommenting this line. pretty sure this logic just needs to go elsewhere, not totally sure how uniforms work.
-		//glUniformMatrix4fv(gModelViewLoc, 1, false, rot);
-		// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
-		// I think something like the above line would do it.
-		// But I'm also not sure it should be done here rather than in init.
-		// this certainly blows things up
-
-
+		// need to rotate two of these
 		glBindVertexArray(manips[i].vao);
 		glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
 	}
@@ -459,7 +437,7 @@ mouse( int button, int state, int x, int y )
 	glReadPixels(x, viewport[3] - y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 	gPicked = -1;
 
-	// TODO: check first if a manipulator was selected. color of (255,0,0) or (0,255,0) or (0,0,255)
+	// check first if a manipulator was selected. color of (255,0,0) or (0,255,0) or (0,0,255)
 	if(ceil(pixel[0]) == 255 && ceil(pixel[1]) == 0 && ceil(pixel[2]) == 0) {
 		held = X_HELD;
 		return;
