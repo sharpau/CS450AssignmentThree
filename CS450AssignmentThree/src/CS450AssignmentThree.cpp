@@ -475,7 +475,7 @@ mouse( int button, int state, int x, int y )
 
 	for(int i=0; i < obj_data.size(); i++) {
 		if(obj_data[i]->selectionR == ceil(pixel[0]) && obj_data[i]->selectionG == pixel[1]
-			&& obj_data[i]->selectionB == pixel[2]&& obj_data[i]->selectionA == pixel[3]) {
+			&& obj_data[i]->selectionB == pixel[2] /*&& obj_data[i]->selectionA == pixel[3]*/) {
 			gPicked = i;
 			obj_data[i]->selected = true;
 		}
