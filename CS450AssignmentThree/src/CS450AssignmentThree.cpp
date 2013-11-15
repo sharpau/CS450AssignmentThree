@@ -22,8 +22,13 @@ using namespace std;
 // globals
 const string DATA_DIRECTORY_PATH = "./Data/";
 
-Obj *GROUND_QUAD = new Obj();
+// special objects
+Obj grid;
 Obj manips[3];
+
+// all loaded objects
+vector<Obj*> obj_data;
+
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
@@ -32,7 +37,6 @@ typedef Angel::vec4  point4;
 GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
 GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
-vector<Obj*> obj_data;
 mat4  gViewTransform;
 mat4 gModelView;
 // copied from example
@@ -73,6 +77,7 @@ obj_mode gCurrentObjMode = OBJ_TRANSLATE;
 camera_mode gCurrentCameraMode = CAMERA_TRANSLATE;
 
 enum menu_val {
+	ITEM_RESET,
 	ITEM_NEW_OBJ,
 	ITEM_OBJ_TRANSLATION,
 	ITEM_OBJ_ROTATION,
@@ -147,6 +152,10 @@ setup_obj(int i) {
 // menu callback
 void menu(int num){
 	switch(num) {
+	case ITEM_RESET:
+		obj_data.clear();
+		// TODO issue #7: Padraic reset camera here
+		break;
 	case ITEM_NEW_OBJ:
 		{
 			char buffer[256];
@@ -162,8 +171,6 @@ void menu(int num){
 				obj_data.push_back(attempt);
 
 				int i = obj_data.size() - 1;
-				
-				// for some reason only part of this loop can be put into a function. WTF
 				setup_obj(i);
 			}
 		}
@@ -224,11 +231,49 @@ void build_menus(void) {
 	glutAddMenuEntry("Load .obj File", ITEM_NEW_OBJ);
 	glutAddSubMenu("Object Transformation", obj_submenu_id);
 	glutAddSubMenu("Camera Transformation", camera_submenu_id);
+	glutAddMenuEntry("Reset All", ITEM_RESET);
  
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+void
+init_grid(void) {
+	// load in vertices for lines
+	for(int i = -10; i < 10; i++) {
+		//grid.data_soa.positions.push_back();
+	}
 
+	// setup vao and two vbos for manipulators
+	glGenVertexArrays(1, &grid.vao);
+	glBindVertexArray(grid.vao);
+	GLuint grid_buffer[2]; // 0 is vertices, 1 is colors
+	glGenBuffers(2, grid_buffer);
+
+	grid.data_soa.colors_stride = 4;
+	for(int j = 0; j < grid.data_soa.num_vertices; j++) {
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(0.0);
+		grid.data_soa.colors.push_back(1.0);
+	}
+		
+		
+	// vertices
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * grid.data_soa.positions.size(), grid.data_soa.positions.data(), GL_STATIC_DRAW);
+	// colors
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * grid.data_soa.colors.size(), grid.data_soa.colors.data(), GL_STATIC_DRAW);
+
+	// color added to shader. only displays with flag == 2
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[0]);
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, grid.data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glBindBuffer(GL_ARRAY_BUFFER, grid_buffer[1]);
+	glEnableVertexAttribArray(gColorLoc);
+	glVertexAttribPointer(gColorLoc, grid.data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+}
 
 void
 init_manips(void) {
