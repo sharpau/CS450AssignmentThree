@@ -27,7 +27,7 @@ vector<string> StringSplit(const string &source, const char *delimiter = " ", bo
     return results;
 }
 
-Obj::Obj() : selected(false)
+Obj::Obj() : selected(false), rotateX(), rotateY(), rotateZ(), thetaX(0.), thetaY(0.), thetaZ(0.)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
@@ -35,7 +35,7 @@ Obj::Obj() : selected(false)
 	model_view = Angel::identity();
 }
 
-Obj::Obj( string in_filename ) : selected(false)
+Obj::Obj( string in_filename ) : selected(false), rotateX(), rotateY(), rotateZ(), thetaX(0.), thetaY(0.), thetaZ(0.)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;
@@ -47,7 +47,7 @@ Obj::Obj( string in_filename ) : selected(false)
 	model_view = Angel::identity();
 }
 
-Obj::Obj( string in_filename, mat4 in_model_view ) : selected(false)
+Obj::Obj( string in_filename, mat4 in_model_view ) : selected(false), rotateX(), rotateY(), rotateZ(), thetaX(0.), thetaY(0.), thetaZ(0.)
 {
 	vertex_element_size = 3;
 	texture_coord_element_size = 2;

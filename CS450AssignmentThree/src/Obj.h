@@ -34,7 +34,9 @@ public:
 	GLuint vao;
 	// Object Transformations
 	mat4 scaleXYZ;
-	mat4 rotateXYZ;
+	mat4 rotateX;
+	mat4 rotateY;
+	mat4 rotateZ;
 	mat4 translateXYZ;
 	mat4 model_view;
 

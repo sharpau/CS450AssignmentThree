@@ -271,11 +271,11 @@ init_manips(void) {
 	// all manips start pointing +y
 	// idx 0 needs to point +x
 	// rotate about z +90
-	manips[0].rotateXYZ = Angel::RotateZ(-90.0f);
+	manips[0].rotateZ = Angel::RotateZ(-90.0f);
 
 	// idx 2 needs to point +z
 	// rotate about x
-	manips[2].rotateXYZ = Angel::RotateX(90.0f);
+	manips[2].rotateX = Angel::RotateX(90.0f);
 
 }
 
@@ -390,7 +390,7 @@ draw(bool selection = false) {
 		//Normal render so set selection Flag to 0
 		gFlag = selection ? 1 : 0;
 		glUniform1i(gSelectFlagLoc, gFlag);
-
+		
 		if(obj->selected == true) {
 			// draw manipulators here
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -399,7 +399,8 @@ draw(bool selection = false) {
 			for(int i = 0; i < 3; i++) {
 				// manips: should have 1 rotation ever. also always use their object's translate.
 				// and should use the gModelView as everything else does
-				mat4 transform = gViewTransform * obj->translateXYZ * manips[i].rotateXYZ; // accumulation shenanigans
+				mat4 rot_manip = manips[i].rotateX * manips[i].rotateY * manips[i].rotateZ;
+				mat4 transform = gViewTransform * obj->translateXYZ * rot_manip; // accumulation shenanigans
 				glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
 				
 
@@ -419,7 +420,9 @@ draw(bool selection = false) {
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		obj->model_view = gViewTransform * ( obj->rotateXYZ * obj->scaleXYZ * obj->translateXYZ);
+		
+		mat4 rot = obj->rotateX * obj->rotateY * obj->rotateZ;
+		obj->model_view = gViewTransform * ( obj->translateXYZ * ( obj->scaleXYZ * rot) );
 		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, obj->model_view);
 
 		glBindVertexArray(obj->vao);
@@ -489,8 +492,8 @@ mouse( int button, int state, int x, int y )
 	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
-	//glutSwapBuffers();
-	//cin.get();
+	glutSwapBuffers();
+	cin.get();
 }
 
 //----------------------------------------------------------------------------
@@ -511,7 +514,7 @@ motion(int x, int y) {
 	last_x = x;
 	last_y = y;
 
-	GLfloat delta = .1;
+	GLfloat delta = .01;
 	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
 
 	dx = dy = dz = .0;
@@ -519,7 +522,9 @@ motion(int x, int y) {
 	dtheta = 0.;
 
 	mat4 translate_xyz = Angel::identity();
-	mat4 rotate_xyz = Angel::identity();
+	mat4 rotate_x = Angel::identity();
+	mat4 rotate_y = Angel::identity();
+	mat4 rotate_z = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
 
 	for( auto obj : obj_data ) {
@@ -561,11 +566,13 @@ motion(int x, int y) {
 				case OBJ_ROTATE:
 					if( delta_x < 0 )
 					{
-						dtheta = (-2. * 3.14) / 3.;
+						dtheta = 1.;
 					} else if( delta_x > 0 ) {
-						dtheta = (2. * 3.14) / 3.;
+						dtheta = -1.;
 					}
-					rotate_xyz = RotateX( obj->thetaX + dtheta );
+					obj->thetaX+= dtheta;
+					rotate_x = RotateX( obj->thetaX );
+					obj->rotateX = rotate_x;
 					break;
 					// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
 				case OBJ_SCALE:
@@ -599,11 +606,13 @@ motion(int x, int y) {
 					
 					if( delta_y < 0 )
 					{
-						dtheta = (-2. * 3.14) / 3.;
+						dtheta = 1.;
 					} else if( delta_y > 0 ) {
-						dtheta = (2. * 3.14) / 3.;
+						dtheta = -1.;
 					}
-					rotate_xyz = RotateY( obj->thetaY + dtheta );
+					obj->thetaY+= dtheta;
+					rotate_y = RotateY( obj->thetaY );
+					obj->rotateY = rotate_y;
 					break;
 				case OBJ_SCALE:
 					
@@ -635,11 +644,13 @@ motion(int x, int y) {
 				case OBJ_ROTATE:					
 					if( delta_x < 0 )
 					{
-						dtheta = (-2. * 3.14) / 3.;
+						dtheta = 1.;
 					} else if( delta_x > 0 ) {
-						dtheta = (2. * 3.14) / 3.;
+						dtheta = -1.;
 					}
-					rotate_xyz = RotateZ( obj->thetaZ + dtheta );
+					obj->thetaZ+= dtheta;
+					rotate_z = RotateZ( obj->thetaZ );
+					obj->rotateZ = rotate_z;
 					break;
 				case OBJ_SCALE:
 					
@@ -659,7 +670,6 @@ motion(int x, int y) {
 			scale_xyz = Scale( obj->translateXYZ[0][0] * dscalex, obj->translateXYZ[1][1] * dscaley, obj->translateXYZ[2][2] * dscalez );
 
 			obj->translateXYZ = translate_xyz;
-			obj->rotateXYZ = rotate_xyz;
 			obj->scaleXYZ = scale_xyz;
 		}
 	}
