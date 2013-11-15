@@ -69,6 +69,7 @@ obj_mode gCurrentObjMode = OBJ_TRANSLATE;
 camera_mode gCurrentCameraMode = CAMERA_TRANSLATE;
 
 enum menu_val {
+	ITEM_NEW_OBJ,
 	ITEM_OBJ_TRANSLATION,
 	ITEM_OBJ_ROTATION,
 	ITEM_SCALE,
@@ -109,6 +110,22 @@ int load_scene_by_file(string filename, vector<string>& obj_filename_list)
 // menu callback
 void menu(int num){
 	switch(num) {
+	case ITEM_NEW_OBJ:
+		{
+			char buffer[256];
+			printf("Please enter .obj filename in data directory:\n");
+			cin.getline(buffer, 256);
+			printf("input was %s\n", buffer);
+
+			auto attempt = new Obj(DATA_DIRECTORY_PATH + buffer);
+			if(attempt->bad_file || !attempt->is_loaded) {
+				printf("Bad file selected, check file path\n");
+			}
+			else {
+				obj_data.push_back(attempt);
+			}
+		}
+		break;
 	case ITEM_OBJ_TRANSLATION:
 		gCurrentObjMode = OBJ_TRANSLATE;
 		break;
@@ -162,6 +179,7 @@ void build_menus(void) {
 	glutAddMenuEntry("Dolly", ITEM_DOLLY);
 	
 	menu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("Load .obj File", ITEM_NEW_OBJ);
 	glutAddSubMenu("Object Transformation", obj_submenu_id);
 	glutAddSubMenu("Camera Transformation", camera_submenu_id);
  
@@ -209,7 +227,7 @@ init_manips(GLint vertLoc, GLint colorLoc) {
 
 // OpenGL initialization
 void
-init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
+init(mat4 projection)
 {
     // Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
@@ -316,16 +334,13 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
     gModelViewLoc = glGetUniformLocation( program, "ModelView" );
     gProjectionLoc = glGetUniformLocation( program, "Projection" );
 
-
-
-    mat4 p = Perspective(90.0, 1.0, 0.1, 4.0);
-
-    point4  eye( in_eye[0], in_eye[1], in_eye[2], 1.0);
-    point4  at( in_at[0], in_at[1], in_at[2], 1.0 );
-    vec4    up( in_up[0], in_up[1], in_up[2], 0.0 );
-
+    point4  eye(0., 0., 1., 1.);
+    point4  at(0., 0., 0., 1.);
+    vec4    up(0., 1., 0., 0.);
 
     mat4  mv = LookAt( eye, at, up );
+
+	// objects should know their mv, right?
 	manips[0].model_view = mv;
 	manips[1].model_view = mv;
 	manips[2].model_view = mv;
@@ -335,7 +350,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
     glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, mv );
-    glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, p );
+    glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, projection );
 
 
     glEnable( GL_DEPTH_TEST );
@@ -632,48 +647,48 @@ keyboard( unsigned char key, int x, int y )
 
 int main(int argc, char** argv)
 {
-	string data_filename = "test.scn";
-	string application_info = "CS450AssignmentThree: ";
+	string application_info = "CS450AssignmentThree";
 	string *window_title = new string;
-	GLfloat eye_position[] = { 0., 0., 1., 1.};
-	GLfloat at_position[] = { 0., 0., 0., 1. };
-	GLfloat up_vector[] = { 0., 1., 0., 0. };
 
-	if(argc != 11) {
-		cerr << "USAGE: Expected 10 arguments but found '" << (argc - 1) << "'" << endl;
-		cerr << "CS450AssignmentTwo SCENE_FILENAME FROM_X FROM_Y FROM_Z AT_X AT_Y AT_Z UP_X UP_Z UP_Y" << endl;
-		cerr << "SCENE_FILENAME: A .scn filename existing in the ./CS450AssignmentTwo/Data/ directory." << endl;
-		cerr << "FROM_X, FROM_Y, FROM_Z*: Floats passed to the LookAt function representing the point in the scene of the eye." << endl;
-		cerr << "AT_X, AT_Y, AT_Z*: Floats passed to the LookAt function representing the point in the scene where the eye is looking." << endl;
-		cerr << "UP_X, UP_Y, UP_Z*: Floats passed to the LookAt function representing the vector that describes the up direction within scene for the eye." << endl;
-		cerr << "*These points and vectors will not be converted to a homogenous coordinate system." << endl;
+	string usage = "Usage:\nCS450AssignmentThree O LEFT RIGHT BOTTOM TOP NEAR FAR\nwhere LEFT RIGHT BOTTOM TOP NEAR and FAR are floating point values that specify the \
+orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is the field of view in degrees, and NEAR and FAR are floating point values that specify the view volume in perspective.\n";
+	bool bad_input = false;
+
+	if(argc < 5) {
+		bad_input = true;
+		cerr << "Not enough arguments.\n";
+	}
+	
+	bool o = false;
+	bool p = false;
+	o = !string("O").compare(argv[1]);
+	p = !string("P").compare(argv[1]);
+	
+	if(!o && !p) {
+		bad_input = true;
+		cerr << "1st parameter was neither 'O' nor 'P'.\n";
+	}
+	else if(o && argc != 8 || p && argc != 5) {
+		bad_input = true;
+		cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
+	}
+	
+	mat4 projection;
+	if(o) {
+		projection = Ortho(atof(argv[2]), atof(argv[3]), atof(argv[4]), atof(argv[5]), atof(argv[6]), atof(argv[7]));
+	}
+	else if(p) {
+		projection = Perspective(atof(argv[2]), 1.0, atof(argv[3]), atof(argv[4]));
+	}
+
+
+	if(bad_input) {
+		cerr << usage;
+		cin.get();
 		return -1;
 	}
-	data_filename = argv[1];
 
-	eye_position[0] = atof(argv[2]);
-	eye_position[1] = atof(argv[3]);
-	eye_position[2] = atof(argv[4]);
 
-	at_position[0] = atof(argv[5]);
-	at_position[1] = atof(argv[6]);
-	at_position[2] = atof(argv[7]);
-
-	up_vector[0] = atof(argv[8]);
-	up_vector[1] = atof(argv[9]);
-	up_vector[2] = atof(argv[10]);
-
-	cout << "Loading scene file: '" << data_filename.c_str() << "'" << endl;
-	cout << "Eye position: {" << eye_position[0] << ", " << eye_position[1] << ", " << eye_position[2] << "}" << endl;
-	cout << "At position: {" << at_position[0] << ", " << at_position[1] << ", " << at_position[2] << "}" << endl;
-	cout << "Up vector: {" << up_vector[0] << ", " << up_vector[1] << ", " << up_vector[2] << "}" << endl;
-	
-	SceneLoader *input_scene = new SceneLoader( DATA_DIRECTORY_PATH );
-	input_scene->load_file( data_filename );
-	for( auto tmp : input_scene->loaded_objs )
-	{
-		obj_data.push_back(tmp);
-	}
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -683,7 +698,6 @@ int main(int argc, char** argv)
     glutInitContextFlags (GLUT_FORWARD_COMPATIBLE);
 #endif
 	window_title->append(application_info);
-	window_title->append(data_filename);
     glutInitWindowSize(512, 512);
     glutInitWindowPosition(500, 300);
     glutCreateWindow(window_title->c_str());
@@ -694,7 +708,7 @@ int main(int argc, char** argv)
     glewInit();
 #endif
 
-	init(eye_position, at_position, up_vector);
+	init(projection);
 
     //NOTE:  callbacks must go after window is created!!!
 	build_menus();
