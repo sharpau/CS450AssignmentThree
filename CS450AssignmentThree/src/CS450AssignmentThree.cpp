@@ -521,7 +521,9 @@ display( void )
 }
 
 //----------------------------------------------------------------------------
-
+vec4 vrp(0., 0., 2., 1.);
+vec4 vpn(0., 0., 1., 0.);
+vec4 vup(0., 1., 0., 0.);
 void
 motion(int x, int y) {
 	int delta_x = last_x - x;
@@ -543,29 +545,57 @@ motion(int x, int y) {
 	mat4 rotate_z = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
 
+	vec4 v = vup - (Angel::dot(vup, vpn) / dot(vpn, vpn)) * vpn;
+	vec4 u = Angel::cross(v, vpn);	
+	u.w = 0.;
+	vec4 u_unit = Angel::normalize(u);
+	vec4 v_unit = Angel::normalize(v);
+	vec4 vpn_unit = Angel::normalize(vpn);
+	mat4 t = Translate(-vrp);
+	mat4 a, r;
+	switch(held) {
+	case NO_MANIP_HELD:
+		printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
+		switch(gCurrentCameraMode) {
+		case CAMERA_ROT_X:
+			//rotate_x = RotateX(gCameraThetaX);
+			// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_ROT_Y:
+			//rotate_y = RotateY(gCameraThetaY);
+			// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_ROT_Z:
+			//rotate_z = RotateZ(gCameraThetaZ);
+			// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
+			break;
+		case CAMERA_TRANSLATE:
+			// take the world_transform component parallel to the viewing plane, move the camera by that amount
+			vrp += vec4(0., 0., .1, 0.);	
+			
+			a[0][0] = u_unit[0];
+			a[0][1] = u_unit[1];
+			a[0][2] = u_unit[2];
+			
+			a[1][0] = v_unit[0];
+			a[1][1] = v_unit[1];
+			a[1][2] = v_unit[2];
+			
+			a[2][0] = vpn_unit[0];
+			a[2][1] = vpn_unit[1];
+			a[2][2] = vpn_unit[2];
+			r = transpose(a);
+			//gViewTransform = r;
+			break;
+		case CAMERA_DOLLY:
+			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
+			break;
+		}
+		break; // BREAK NO_MANIP_HELD
+	}
 	for( auto obj : obj_data ) {
 		if( obj->selected ) {
 			switch(held) {
-			case NO_MANIP_HELD:
-				printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
-				switch(gCurrentCameraMode) {
-				case CAMERA_ROT_X:
-					// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
-					break;
-				case CAMERA_ROT_Y:
-					// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
-					break;
-				case CAMERA_ROT_Z:
-					// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
-					break;
-				case CAMERA_TRANSLATE:
-					// take the world_transform component parallel to the viewing plane, move the camera by that amount
-					break;
-				case CAMERA_DOLLY:
-					// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
-					break;
-				}
-				break; // BREAK NO_MANIP_HELD
 			case X_HELD:
 				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
 				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
