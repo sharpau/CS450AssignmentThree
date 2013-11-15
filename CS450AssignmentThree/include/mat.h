@@ -638,15 +638,9 @@ inline
 mat4 Translate( const GLfloat x, const GLfloat y, const GLfloat z )
 {
     mat4 c;
-<<<<<<< HEAD
-    c[0][2] = x;
-    c[1][2] = y;
-    c[2][2] = z;
-=======
     c[0][3] = GLfloat(x);
     c[1][3] = GLfloat(y);
     c[2][3] = GLfloat(z);
->>>>>>> origin/before-view-transform
     return c;
 }
 
