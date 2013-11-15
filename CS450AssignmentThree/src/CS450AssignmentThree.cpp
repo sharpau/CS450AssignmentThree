@@ -713,7 +713,9 @@ vector<string> argv_copy;
 void myReshape2(int w, int h)
 {
 	glViewport(0,0,w,h);
-	float ar = w/h;
+	float ar = (float)w/(float)h;
+
+	printf("w = %d, h = %d, ar = %f\n", w, h, ar);
 
 	mat4 projection;
 
