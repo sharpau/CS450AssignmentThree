@@ -420,6 +420,20 @@ draw(bool selection = false) {
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
+
+		if(selection) {
+			gSelectionColorR = obj->selectionR;
+			gSelectionColorG = obj->selectionG;
+			gSelectionColorB = obj->selectionB;
+			gSelectionColorA = obj->selectionA;
+
+			//sync with shader
+			glUniform1i(gSelectColorRLoc,gSelectionColorR);
+			glUniform1i(gSelectColorGLoc,gSelectionColorG);
+			glUniform1i(gSelectColorBLoc,gSelectionColorB);
+			glUniform1i(gSelectColorALoc,gSelectionColorA);
+		}
+
 		
 		mat4 rot = obj->rotateX * obj->rotateY * obj->rotateZ;
 		obj->model_view = gViewTransform * ( obj->translateXYZ * ( obj->scaleXYZ * rot) );
@@ -492,8 +506,8 @@ mouse( int button, int state, int x, int y )
 	// uncomment below to see the color render
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
-	glutSwapBuffers();
-	cin.get();
+	//glutSwapBuffers();
+	//cin.get();
 }
 
 //----------------------------------------------------------------------------
