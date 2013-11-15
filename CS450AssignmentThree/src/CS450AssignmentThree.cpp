@@ -233,9 +233,9 @@ init(mat4 projection)
 	// doing this ahead of time so we can use it for setup of special objects
     GLuint program = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram( program );
-	GLint vertLoc = glGetAttribLocation( program, "vPosition" );
-	GLint normLoc = glGetAttribLocation( program, "vNormal" );
-	GLint colorLoc = glGetAttribLocation( program, "vColor" );
+	GLint vertLoc = glGetAttribLocation(program, "vPosition");
+	GLint normLoc = glGetAttribLocation(program, "vNormal");
+	GLint colorLoc = glGetAttribLocation(program, "vColor");
 
 	// build the special objects not loaded by user
 	init_manips(vertLoc, colorLoc);	
@@ -261,21 +261,21 @@ init(mat4 projection)
 		obj_data[i]->selectionB=i;
 		obj_data[i]->selectionA=255; // only seems to work at 255
 		
-		glBindBuffer( GL_ARRAY_BUFFER, vbos[i] );
+		glBindBuffer(GL_ARRAY_BUFFER, vbos[i]);
 		GLsizei num_bytes_vert_data = sizeof(GLfloat) * obj_data[i]->data_soa.positions.size();
 		GLsizei num_bytes_norm_data = sizeof(GLfloat) * obj_data[i]->data_soa.normals.size();
 		GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
 		GLvoid *norm_data = obj_data[i]->data_soa.normals.data();
-		glBufferData( GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW );
-		glBufferSubData( GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data );
-		glBufferSubData( GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data );
+		glBufferData(GL_ARRAY_BUFFER, num_bytes_vert_data + num_bytes_vert_data, NULL, GL_STATIC_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, num_bytes_vert_data, vert_data);
+		glBufferSubData(GL_ARRAY_BUFFER, num_bytes_vert_data, num_bytes_norm_data, norm_data);
 		
-		glEnableVertexAttribArray( vertLoc );
-		glVertexAttribPointer( vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0 );
-		glEnableVertexAttribArray( normLoc );
-		glVertexAttribPointer( normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data );
+		glEnableVertexAttribArray(vertLoc);
+		glVertexAttribPointer(vertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) 0);
+		glEnableVertexAttribArray(normLoc);
+		glVertexAttribPointer(normLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *) num_bytes_vert_data);
 		int linked;
-		glGetProgramiv( program, GL_LINK_STATUS, &linked );
+		glGetProgramiv(program, GL_LINK_STATUS, &linked);
 		if( linked != GL_TRUE )
 		{
 			int maxLength;
@@ -289,14 +289,14 @@ init(mat4 projection)
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-    point4 light_position( 0., 1.25, 1., 1.0 );
-    color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
-    color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
-    color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
+    point4 light_position(0., 1.25, 1., 1.0);
+    color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+    color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+    color4 light_specular(1.0, 1.0, 1.0, 1.0);
 
-    color4 material_ambient( 1.0, 0.0, 1.0, 1.0 );
-    color4 material_diffuse( 1.0, 0.8, 0.0, 1.0 );
-    color4 material_specular( 1.0, 0.8, 0.0, 1.0 );
+    color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+    color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+    color4 material_specular(1.0, 0.8, 0.0, 1.0);
     float  material_shininess = 100.0;
 
     color4 ambient_product = light_ambient * material_ambient;
@@ -331,14 +331,14 @@ init(mat4 projection)
 	glUniform1i(gSelectFlagLoc, gFlag);
 
 
-    gModelViewLoc = glGetUniformLocation( program, "ModelView" );
-    gProjectionLoc = glGetUniformLocation( program, "Projection" );
+    gModelViewLoc = glGetUniformLocation(program, "ModelView");
+    gProjectionLoc = glGetUniformLocation(program, "Projection");
 
     point4  eye(0., 0., 1., 1.);
     point4  at(0., 0., 0., 1.);
     vec4    up(0., 1., 0., 0.);
 
-    mat4  mv = LookAt( eye, at, up );
+    mat4  mv = LookAt(eye, at, up);
 
 	// objects should know their mv, right?
 	manips[0].model_view = mv;
@@ -349,12 +349,12 @@ init(mat4 projection)
 	}
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
-    glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, mv );
-    glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, projection );
+    glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, mv);
+    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
 
 
-    glEnable( GL_DEPTH_TEST );
-    glClearColor( 1.0, 1.0, 1.0, 1.0 );
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(1.0, 1.0, 1.0, 1.0);
 }
 
 //----------------------------------------------------------------------------
@@ -522,14 +522,14 @@ display( void )
 
 			// wireframe
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glPolygonOffset(1.0, 2 ); //Try 1.0 and 2 for factor and units
+			glPolygonOffset(1.0, 2); //Try 1.0 and 2 for factor and units
 
 		}
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		glBindVertexArray( obj->vao );
-		glDrawArrays( GL_TRIANGLES, 0, obj->data_soa.num_vertices );
+		glBindVertexArray(obj->vao);
+		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
 	}
     glutSwapBuffers();
 }
@@ -688,6 +688,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		return -1;
 	}
 
+	obj_data.push_back(new Obj(DATA_DIRECTORY_PATH + "bunnyS.obj"));
 
 	glutInit(&argc, argv);
 #ifdef __APPLE__
