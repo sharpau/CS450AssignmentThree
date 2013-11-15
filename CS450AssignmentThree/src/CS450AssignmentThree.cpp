@@ -249,7 +249,7 @@ init_manips(void) {
 			manips[i].data_soa.colors.push_back(i == 2 ? 1.0 : 0.0);
 			manips[i].data_soa.colors.push_back(1.0);
 		}
-
+		
 		
 		// vertices
 		glBindBuffer(GL_ARRAY_BUFFER, manips_buffer[0]);
@@ -267,6 +267,15 @@ init_manips(void) {
 		glEnableVertexAttribArray(gColorLoc);
 		glVertexAttribPointer(gColorLoc, manips[i].data_soa.colors_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 	}
+	
+	// all manips start pointing +y
+	// idx 0 needs to point +x
+	// rotate about z +90
+	manips[0].rotateXYZ = Angel::RotateZ(-90.0f);
+
+	// idx 2 needs to point +z
+	// rotate about x
+	manips[2].rotateXYZ = Angel::RotateX(90.0f);
 
 }
 
@@ -285,8 +294,6 @@ init(mat4 projection)
 	// build the special objects not loaded by user
 	init_manips();	
 
-	
-	
 	for( int i = 0; i < obj_data.size(); i++ )
 	{
 		// for some reason only part of this loop can be put into a function. WTF
@@ -366,7 +373,6 @@ init(mat4 projection)
 	for(auto obj : obj_data) {
 		obj->model_view = gViewTransform;
 	}
-    //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
     glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
     glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
@@ -374,6 +380,51 @@ init(mat4 projection)
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(1.0, 1.0, 1.0, 1.0);
+}
+
+void
+draw(bool selection = false) {
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	for( auto obj : obj_data )
+	{
+		//Normal render so set selection Flag to 0
+		gFlag = selection ? 1 : 0;
+		glUniform1i(gSelectFlagLoc, gFlag);
+
+		if(obj->selected == true) {
+			// draw manipulators here
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			gFlag = 2;	// change flag to 2, for absolute coloring
+			glUniform1i(gSelectFlagLoc, gFlag);
+			for(int i = 0; i < 3; i++) {
+				// manips: should have 1 rotation ever. also always use their object's translate.
+				// and should use the gModelView as everything else does
+				mat4 transform = gModelView * obj->translateXYZ * manips[i].rotateXYZ; // accumulation shenanigans
+				glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
+				
+
+				glBindVertexArray(manips[i].vao);
+				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
+			}
+		
+			// back to normal rendering
+			gFlag = selection ? 1 : 0;
+			glUniform1i(gSelectFlagLoc, gFlag);
+
+			// wireframe
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			glPolygonOffset(1.0, 2); //Try 1.0 and 2 for factor and units
+
+		}
+		else {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+		mat4 transform = gModelView * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
+		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
+
+		glBindVertexArray(obj->vao);
+		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -389,43 +440,13 @@ mouse( int button, int state, int x, int y )
 	last_x = x;
 	last_y = y;
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	// ------------------------------- redrawing for selection
 
-	//render each object, setting the selection RGBA to the objects selection color (RGBA)
-	for(int i = 0; i < obj_data.size(); i++) {
-		//should store numVerts with vao and possibly the index in the array of objects, instead of storing only ints as I currently am
-		//which represent the vaos
-		gFlag = 1;
+	draw(true);
 
-		glBindVertexArray(obj_data[i]->vao);
+	// -------------------------------- end redrawing
 
-		gSelectionColorR = obj_data[i]->selectionR;
-		gSelectionColorG = obj_data[i]->selectionG;
-		gSelectionColorB = obj_data[i]->selectionB;
-		gSelectionColorA = obj_data[i]->selectionA;
 
-		//sync with shader
-		glUniform1i(gSelectColorRLoc,gSelectionColorR);
-		glUniform1i(gSelectColorGLoc,gSelectionColorG);
-		glUniform1i(gSelectColorBLoc,gSelectionColorB);
-		glUniform1i(gSelectColorALoc,gSelectionColorA);
-		glUniform1i(gSelectFlagLoc, gFlag);
-
-		//Draw the scene.  The gFlag will force shader to not use shading, but instead use a constant color
-		glDrawArrays(GL_TRIANGLES, 0, obj_data[i]->data_soa.num_vertices);
-	}
-
-	// check if a manip was clicked
-	gFlag = 2;	// change flag to 2, for absolute coloring
-	glUniform1i(gSelectFlagLoc, gFlag);
-	for(int i = 0; i < 3; i++) {
-		// need to rotate two of these
-		glBindVertexArray(manips[i].vao);
-		glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
-	}
-
-	// this didn't need to be in the loop
 	glutPostRedisplay();  //MUST REMEMBER TO CALL POST REDISPLAY OR IT WON'T RENDER!
 
 	//Now check the pixel location to see what color is found!
@@ -459,6 +480,7 @@ mouse( int button, int state, int x, int y )
 			obj_data[i]->selected = true;
 		}
 		else {
+			gPicked = -1;
 			obj_data[i]->selected = false;
 		}
 	}
@@ -468,6 +490,7 @@ mouse( int button, int state, int x, int y )
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 	//glutSwapBuffers();
+	//cin.get();
 }
 
 //----------------------------------------------------------------------------
@@ -475,43 +498,7 @@ mouse( int button, int state, int x, int y )
 void
 display( void )
 {
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	for( auto obj : obj_data )
-	{
-		//Normal render so set selection Flag to 0
-		gFlag = 0;
-		glUniform1i(gSelectFlagLoc, gFlag);
-		gModelView = gModelView * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
-		glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, gModelView );
-		if(obj->selected == true) {
-			// draw manipulators here
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			gFlag = 2;	// change flag to 2, for absolute coloring
-			glUniform1i(gSelectFlagLoc, gFlag);
-			for(int i = 0; i < 3; i++) {
-				// need to rotate 2 manips TODO
-				// need to rotate 2 manips TODO
-				glBindVertexArray(manips[i].vao);
-				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
-			}
-			
-			
-			//glUniformMatrix4fv(gModelViewLoc, 1, false, obj->model_view);
-			// back to normal rendering
-			gFlag = 0;
-			glUniform1i(gSelectFlagLoc, gFlag);
-
-			// wireframe
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glPolygonOffset(1.0, 2); //Try 1.0 and 2 for factor and units
-
-		}
-		else {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		}
-		glBindVertexArray(obj->vao);
-		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
-	}
+	draw();
     glutSwapBuffers();
 }
 
@@ -524,15 +511,6 @@ motion(int x, int y) {
 	last_x = x;
 	last_y = y;
 
-	// so to translate XY mouse vector into an in-universe vector, we need to do two things
-	// 1. apply camera transform (for instance, if we're looking down -y, the transform from viewing xy play to xz plane)
-	// 2. translate the units of the vector from pixels into our arbitrary model units 
-	//		(think of doing this with camera in default location. on-screen xy must be turned into in-universe xy in a unit-consistent way. it's possible that this involves the view volume.)
-
-	vec3 world_transform = /* TODO some awesome function instead */ vec3(delta_x, delta_y, 0.0f);
-
-	// Padraic: check my assumptions about the perpendicular vs parallel components of the mouse vector needed for transformations
-	// these are just a rough idea of what's necessary and may not line up 100% with the actual math
 	GLfloat delta = .1;
 	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
 
@@ -754,7 +732,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 #endif
 
 	window_title->append(application_info);
-	glutInitWindowSize(512, 512);
+	glutInitWindowSize(1024, 1024);
 	glutInitWindowPosition(500, 300);
     glutCreateWindow(window_title->c_str());
     printf("%s\n%s\n", glGetString(GL_RENDERER), glGetString(GL_VERSION));
