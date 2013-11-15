@@ -419,7 +419,7 @@ draw(bool selection = false) {
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		obj->model_view = gViewTransform * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
+		obj->model_view = gViewTransform * ( obj->rotateXYZ * obj->scaleXYZ * obj->translateXYZ);
 		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, obj->model_view);
 
 		glBindVertexArray(obj->vao);
@@ -565,7 +565,7 @@ motion(int x, int y) {
 					} else if( delta_x > 0 ) {
 						dtheta = (2. * 3.14) / 3.;
 					}
-					rotate_xyz = RotateX( dtheta );
+					rotate_xyz = RotateX( obj->thetaX + dtheta );
 					break;
 					// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
 				case OBJ_SCALE:
@@ -603,7 +603,7 @@ motion(int x, int y) {
 					} else if( delta_y > 0 ) {
 						dtheta = (2. * 3.14) / 3.;
 					}
-					rotate_xyz = RotateY( dtheta );
+					rotate_xyz = RotateY( obj->thetaY + dtheta );
 					break;
 				case OBJ_SCALE:
 					
@@ -639,7 +639,7 @@ motion(int x, int y) {
 					} else if( delta_x > 0 ) {
 						dtheta = (2. * 3.14) / 3.;
 					}
-					rotate_xyz = RotateZ( dtheta );
+					rotate_xyz = RotateZ( obj->thetaZ + dtheta );
 					break;
 				case OBJ_SCALE:
 					
@@ -655,12 +655,12 @@ motion(int x, int y) {
 				}
 				break; // BREAK Z_HELD
 			}
-			translate_xyz = Translate( dx, dy, dz );
-			scale_xyz = Scale( dscalex, dscaley, dscalez );
+			translate_xyz = Translate( obj->translateXYZ[0][3] + dx, obj->translateXYZ[1][3] + dy, obj->translateXYZ[2][3] + dz );
+			scale_xyz = Scale( obj->translateXYZ[0][0] * dscalex, obj->translateXYZ[1][1] * dscaley, obj->translateXYZ[2][2] * dscalez );
 
-			obj->translateXYZ = obj->translateXYZ + translate_xyz;
-			obj->rotateXYZ = obj->rotateXYZ * rotate_xyz;
-			obj->scaleXYZ = obj->scaleXYZ + scale_xyz;
+			obj->translateXYZ = translate_xyz;
+			obj->rotateXYZ = rotate_xyz;
+			obj->scaleXYZ = scale_xyz;
 		}
 	}
 }

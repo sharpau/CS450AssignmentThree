@@ -54,7 +54,9 @@ public:
 	GLubyte selectionB;
 	GLubyte selectionA;
 	bool selected;
-	
+	GLfloat thetaX;
+	GLfloat thetaY;
+	GLfloat thetaZ;
 	//methods
 	int add_vertex(GLfloat x, GLfloat y, GLfloat z = 0., GLfloat w = 0.);
 	int add_texture_coord(GLfloat texture_coord_u, GLfloat texture_coord_v, GLfloat texture_coord_w = 0);
