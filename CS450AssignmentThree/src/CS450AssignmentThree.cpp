@@ -33,7 +33,7 @@ GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
 GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
 vector<Obj*> obj_data;
-
+mat4  gViewTransform;
 
 // copied from example
 //Selection variables
@@ -325,16 +325,16 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
     vec4    up( in_up[0], in_up[1], in_up[2], 0.0 );
 
 
-    mat4  mv = LookAt( eye, at, up );
-	manips[0].model_view = mv;
-	manips[1].model_view = mv;
-	manips[2].model_view = mv;
+    gViewTransform = LookAt( eye, at, up );
+	manips[0].model_view = gViewTransform;
+	manips[1].model_view = gViewTransform;
+	manips[2].model_view = gViewTransform;
 	for(auto obj : obj_data) {
-		obj->model_view = mv;
+		obj->model_view = gViewTransform;
 	}
     //vec4 v = vec4(0.0, 0.0, 1.0, 1.0);
 
-    glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, mv );
+    glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, gViewTransform );
     glUniformMatrix4fv( gProjectionLoc, 1, GL_TRUE, p );
 
 
@@ -469,7 +469,7 @@ display( void )
 		//Normal render so set selection Flag to 0
 		gFlag = 0;
 		glUniform1i(gSelectFlagLoc, gFlag);
-
+		mat4 mv = gViewTransform * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
 		if(obj->selected == true) {
 			// draw manipulators here
 			gFlag = 2;	// change flag to 2, for absolute coloring
