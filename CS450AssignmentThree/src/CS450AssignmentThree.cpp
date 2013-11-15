@@ -239,9 +239,27 @@ void build_menus(void) {
 void
 init_grid(void) {
 	// load in vertices for lines
+	grid.data_soa.positions_stride = 3;
 	for(int i = -10; i < 10; i++) {
-		//grid.data_soa.positions.push_back();
+		// line on x = i
+		grid.data_soa.positions.push_back(i);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(-10);
+
+		grid.data_soa.positions.push_back(i);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(10);
+
+		// line on y = i
+		grid.data_soa.positions.push_back(-10);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(i);
+
+		grid.data_soa.positions.push_back(10);
+		grid.data_soa.positions.push_back(0);
+		grid.data_soa.positions.push_back(i);
 	}
+	grid.data_soa.num_vertices = grid.data_soa.positions.size() / grid.data_soa.positions_stride;
 
 	// setup vao and two vbos for manipulators
 	glGenVertexArrays(1, &grid.vao);
@@ -337,6 +355,7 @@ init(mat4 projection)
 	gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
 	// build the special objects not loaded by user
+	init_grid();
 	init_manips();	
 
 	for( int i = 0; i < obj_data.size(); i++ )
@@ -430,6 +449,17 @@ init(mat4 projection)
 void
 draw(bool selection = false) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+	if(!selection) {
+		mat4 rot = grid.rotateX * grid.rotateY * grid.rotateZ;
+		grid.model_view = gViewTransform * (grid.translateXYZ * (grid.scaleXYZ * rot));
+		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, grid.model_view);
+		// draw ground grid
+		glBindVertexArray(grid.vao);
+		glDrawArrays(GL_LINES, 0, grid.data_soa.num_vertices);
+	}
+
+	// draw user objects and manips
 	for( auto obj : obj_data )
 	{
 		//Normal render so set selection Flag to 0
@@ -762,7 +792,7 @@ void myReshape2(int w, int h)
 	glViewport(0,0,w,h);
 	float ar = (float)w/(float)h;
 
-	printf("w = %d, h = %d, ar = %f\n", w, h, ar);
+	//printf("w = %d, h = %d, ar = %f\n", w, h, ar);
 
 	mat4 projection;
 
