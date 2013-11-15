@@ -51,6 +51,9 @@ GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 GLuint gProgram;
 GLint gVertLoc, gNormLoc, gColorLoc;
 
+// camera transforms
+mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
+
 // which manipulator is being dragged
 enum manip {
 	NO_MANIP_HELD,
@@ -346,7 +349,11 @@ init_manips(void) {
 void
 init(mat4 projection)
 {
-    // Load shaders and use the resulting shader program
+    gCameraRotX = Angel::identity();
+	gCameraRotY = Angel::identity();
+	gCameraRotZ = Angel::identity();
+	gCameraTranslate = Angel::identity();
+	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
     gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram(gProgram);
@@ -596,9 +603,6 @@ display( void )
 }
 
 //----------------------------------------------------------------------------
-vec4 vrp(0., 0., 2., 1.);
-vec4 vpn(0., 0., 1., 0.);
-vec4 vup(0., 1., 0., 0.);
 void
 motion(int x, int y) {
 	int delta_x = last_x - x;
@@ -620,47 +624,36 @@ motion(int x, int y) {
 	mat4 rotate_z = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
 
-	vec4 v = vup - (Angel::dot(vup, vpn) / dot(vpn, vpn)) * vpn;
-	vec4 u = Angel::cross(v, vpn);	
-	u.w = 0.;
-	vec4 u_unit = Angel::normalize(u);
-	vec4 v_unit = Angel::normalize(v);
-	vec4 vpn_unit = Angel::normalize(vpn);
-	mat4 t = Translate(-vrp);
-	mat4 a, r;
+
+	vec4 mouse_drag(delta_x, delta_y, 0., 0.);
+	vec4 world_drag = gViewTransform * mouse_drag;
+	printf("world drag: (%f, %f, %f)\n", world_drag.x, world_drag.y, world_drag.z); 
 	switch(held) {
 	case NO_MANIP_HELD:
 		printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
 		switch(gCurrentCameraMode) {
 		case CAMERA_ROT_X:
 			//rotate_x = RotateX(gCameraThetaX);
-			// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
 			break;
 		case CAMERA_ROT_Y:
 			//rotate_y = RotateY(gCameraThetaY);
-			// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
 			break;
 		case CAMERA_ROT_Z:
 			//rotate_z = RotateZ(gCameraThetaZ);
-			// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
 			break;
 		case CAMERA_TRANSLATE:
-			// take the world_transform component parallel to the viewing plane, move the camera by that amount
-			vrp += vec4(0., 0., .1, 0.);	
-			
-			a[0][0] = u_unit[0];
-			a[0][1] = u_unit[1];
-			a[0][2] = u_unit[2];
-			
-			a[1][0] = v_unit[0];
-			a[1][1] = v_unit[1];
-			a[1][2] = v_unit[2];
-			
-			a[2][0] = vpn_unit[0];
-			a[2][1] = vpn_unit[1];
-			a[2][2] = vpn_unit[2];
-			r = transpose(a);
-			//gViewTransform = r;
+			// figure out our view plane - perpendicular to viewtransform * vec4(eye - at)
+			// 
+			if(world_drag.x < 0)
+			{
+				dx = -1. * delta;
+			} else {
+				dx = delta;
+			}
+
+			translate_xyz = Translate(-dx, -dy, -dz); // inverse
+			gCameraTranslate *= translate_xyz; // needs all the rotates
+			gViewTransform = gCameraTranslate * gViewTransform;
 			break;
 		case CAMERA_DOLLY:
 			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
