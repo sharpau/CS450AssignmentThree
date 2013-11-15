@@ -34,7 +34,7 @@ GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
 vector<Obj*> obj_data;
 mat4  gViewTransform;
-
+mat4 gModelView;
 // copied from example
 //Selection variables
 GLuint gSelectionColorR, gSelectionColorG, gSelectionColorB, gSelectionColorA;
@@ -326,6 +326,7 @@ init(GLfloat in_eye[3], GLfloat in_at[3], GLfloat in_up[3])
 
 
     gViewTransform = LookAt( eye, at, up );
+	gModelView = gViewTransform * Angel::identity();
 	manips[0].model_view = gViewTransform;
 	manips[1].model_view = gViewTransform;
 	manips[2].model_view = gViewTransform;
@@ -469,7 +470,8 @@ display( void )
 		//Normal render so set selection Flag to 0
 		gFlag = 0;
 		glUniform1i(gSelectFlagLoc, gFlag);
-		mat4 mv = gViewTransform * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
+		gModelView = gModelView * obj->translateXYZ * obj->rotateXYZ * obj->scaleXYZ;
+		glUniformMatrix4fv( gModelViewLoc, 1, GL_TRUE, gModelView );
 		if(obj->selected == true) {
 			// draw manipulators here
 			gFlag = 2;	// change flag to 2, for absolute coloring
@@ -537,82 +539,82 @@ motion(int x, int y) {
 
 	// Padraic: check my assumptions about the perpendicular vs parallel components of the mouse vector needed for transformations
 	// these are just a rough idea of what's necessary and may not line up 100% with the actual math
-	GLfloat dx, dy, dz, currx, curry, currz, dtheta, theta, dscalex, dscaley, dscalez, scalex, scaley, scalez;
-	dx = dy = dz = dtheta = dscalex = dscaley = dscalez = .01;
+	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
+	GLfloat deltaxyz = .1;
+	GLfloat deltaScalexyz = 1.1;
+
+	dx = dy = dz = .0;
+	dscalex = dscaley = dscalez = 1.;
+	dtheta = 3.14 / 3.;
 	mat4 translate_xyz = Angel::identity();
 	mat4 rotate_xyz = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
-	Obj *selected_obj = obj_data[0];
-	currx = selected_obj->model_view[3][0];
-	curry = selected_obj->model_view[3][1];
-	currz = selected_obj->model_view[3][2];
-	theta = 0.;
-	auto Rotate = RotateX;
-	
-	switch(held) {
-	case NO_MANIP_HELD:
-		printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
-		switch(gCurrentCameraMode) {
-		case CAMERA_ROT_X:
-			// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
-			break;
-		case CAMERA_ROT_Y:
-			// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
-			break;
-		case CAMERA_ROT_Z:
-			// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
-			break;
-		case CAMERA_TRANSLATE:
-			// take the world_transform component parallel to the viewing plane, move the camera by that amount
-			break;
-		case CAMERA_DOLLY:
-			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
-			break;
-		}
+	for( auto obj : obj_data ) {
+		if( obj->selected ) {
 
-		break; // BREAK NO_MANIP_HELD
-	case X_HELD:
-		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-		Rotate = RotateX;
-		dy = 0.;
-		dz = 0.;
-		break;
-	case Y_HELD:
-		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-		Rotate = RotateY;
-		dx = 0.;
-		dz = 0.;
-		break;
-	case Z_HELD:
-		printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-		Rotate = RotateZ;
-		dx = 0.;
-		dy = 0.;
-		break; // BREAK Z_HELD
+			switch(held) {
+			case NO_MANIP_HELD:
+				printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
+				switch(gCurrentCameraMode) {
+				case CAMERA_ROT_X:
+					// take the world_transform component perpendicular to the x axis, and turn that into degrees-to-rotate
+					break;
+				case CAMERA_ROT_Y:
+					// take the world_transform component perpendicular to the y axis, and turn that into degrees-to-rotate
+					break;
+				case CAMERA_ROT_Z:
+					// take the world_transform component perpendicular to the z axis, and turn that into degrees-to-rotate
+					break;
+				case CAMERA_TRANSLATE:
+					// take the world_transform component parallel to the viewing plane, move the camera by that amount
+					break;
+				case CAMERA_DOLLY:
+					// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
+					break;
+				}
+
+				break; // BREAK NO_MANIP_HELD
+			case X_HELD:
+				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
+				rotate_xyz = RotateX( dtheta );
+				dx = deltaxyz;
+				dscalex = deltaScalexyz;
+				break;
+			case Y_HELD:
+				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
+				rotate_xyz = RotateY( dtheta );
+				dy = deltaxyz;
+				dscaley = deltaScalexyz;
+				break;
+			case Z_HELD:
+				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
+				rotate_xyz = RotateZ( dtheta );
+				dz = deltaxyz;
+				dscalez = deltaScalexyz;
+				break; // BREAK Z_HELD
+			}
+			// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
+			// so it should be possible to write axis-agnostic code using 'held' as the index for which dimension
+			// right????
+			translate_xyz = Translate( dx, dy, dz );
+			scale_xyz = Scale( dscalex, dscaley, dscalez );
+			gCurrentObjMode = OBJ_SCALE;
+			switch(gCurrentObjMode) {
+			case OBJ_TRANSLATE:
+				// take the world_transform component parallel to x/y/z, move object that far
+				obj->translateXYZ = translate_xyz;
+				break;
+			case OBJ_ROTATE:
+				// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
+				obj->rotateXYZ = rotate_xyz;
+				break;
+			case OBJ_SCALE:
+				// like translate, but scale instead of moving
+				obj->scaleXYZ = Scale( dscalex, dscaley, dscalez );
+				break;
+			}
+		}
 	}
-	// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
-	// so it should be possible to write axis-agnostic code using 'held' as the index for which dimension
-	// right????
-	switch(gCurrentObjMode) {
-	case OBJ_TRANSLATE:
-		// take the world_transform component parallel to x/y/z, move object that far
-		translate_xyz = Translate( dx, dy, dz );
-		break;
-	case OBJ_ROTATE:
-		// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
-		rotate_xyz = Rotate( theta + dtheta );
-		break;
-	case OBJ_SCALE:
-		// like translate, but scale instead of moving
-		scale_xyz = Scale( scalex, scaley, scalez );
-		break;
-	}
-	/*mat4 delta_model_view = translate_xyz * 
-		Translate(  selected_obj->model_view[3][0], selected_obj->model_view[3][1], selected_obj->model_view[3][2] ) * 
-		rotate_xyz * scale_xyz * Translate( -selected_obj->model_view[3][0], -selected_obj->model_view[3][1], -selected_obj->model_view[3][2] ) * 
-		selected_obj->model_view;
-	
-	selected_obj->model_view = delta_model_view;*/
 }
 
 //----------------------------------------------------------------------------
