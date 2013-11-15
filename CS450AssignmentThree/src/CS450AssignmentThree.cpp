@@ -487,6 +487,7 @@ display( void )
 
 		if(obj->selected == true) {
 			// draw manipulators here
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			for(int i = 0; i < 3; i++) {
