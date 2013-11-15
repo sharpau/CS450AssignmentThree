@@ -477,26 +477,6 @@ display( void )
 			gFlag = 2;	// change flag to 2, for absolute coloring
 			glUniform1i(gSelectFlagLoc, gFlag);
 			for(int i = 0; i < 3; i++) {
-				mat4 rot = manips[i].model_view;
-
-				// default obj points up y axis
-				if(i == 0) {
-					rot = Angel::RotateZ(90.0f) * rot;
-				}
-				else if(i == 2) {
-					rot = Angel::RotateX(90.0f) * rot;
-				}
-				
-				// put rot in as model view matrix
-
-				// try uncommenting this line. pretty sure this logic just needs to go elsewhere, not totally sure how uniforms work.
-				//glUniformMatrix4fv(gModelViewLoc, 1, false, rot);
-				// TODO hey Padraic, I'm trying here to rotate two of the axis objects.
-				// I think something like the above line would do it.
-				// But I'm also not sure it should be done here rather than in init.
-				// this certainly blows things up
-
-
 				glBindVertexArray(manips[i].vao);
 				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
 			}
@@ -539,19 +519,19 @@ motion(int x, int y) {
 
 	// Padraic: check my assumptions about the perpendicular vs parallel components of the mouse vector needed for transformations
 	// these are just a rough idea of what's necessary and may not line up 100% with the actual math
+	GLfloat delta = .1;
 	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
-	GLfloat deltaxyz = .1;
-	GLfloat deltaScalexyz = 1.1;
 
 	dx = dy = dz = .0;
 	dscalex = dscaley = dscalez = 1.;
-	dtheta = 3.14 / 3.;
+	dtheta = 0.;
+
 	mat4 translate_xyz = Angel::identity();
 	mat4 rotate_xyz = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
+
 	for( auto obj : obj_data ) {
 		if( obj->selected ) {
-
 			switch(held) {
 			case NO_MANIP_HELD:
 				printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
@@ -572,47 +552,123 @@ motion(int x, int y) {
 					// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
 					break;
 				}
-
 				break; // BREAK NO_MANIP_HELD
 			case X_HELD:
 				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-				rotate_xyz = RotateX( dtheta );
-				dx = deltaxyz;
-				dscalex = deltaScalexyz;
-				break;
+				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+				switch(gCurrentObjMode) {
+				case OBJ_TRANSLATE:
+					// take the world_transform component parallel to x/y/z, move object that far
+					if( delta_x < 0 )
+					{
+						dx = delta;
+					} else if( delta_x > 0 ) {
+						dx = -1. * delta;
+					}
+					break;
+				case OBJ_ROTATE:
+					if( delta_x < 0 )
+					{
+						dtheta = (-2. * 3.14) / 3.;
+					} else if( delta_x > 0 ) {
+						dtheta = (2. * 3.14) / 3.;
+					}
+					rotate_xyz = RotateX( dtheta );
+					break;
+					// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
+				case OBJ_SCALE:
+					
+					if( delta_x < 0 )
+					{
+						dscalex = 1.1;
+					} else if( delta_x > 0 ) {
+						dscalex = .9;
+					}
+					break;
+
+				break; // BREAK gCurrentObjMode
+				}
+				break; // BREAK X_HELD
+
 			case Y_HELD:
-				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-				rotate_xyz = RotateY( dtheta );
-				dy = deltaxyz;
-				dscaley = deltaScalexyz;
-				break;
+				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+				switch(gCurrentObjMode) {
+				case OBJ_TRANSLATE:
+					// take the world_transform component parallel to y/y/z, move object that far
+					
+					if( delta_y < 0 )
+					{
+						dy = -1. * delta;
+					} else if( delta_y > 0 ) {
+						dy = delta;
+					}
+					break;
+				case OBJ_ROTATE:
+					
+					if( delta_y < 0 )
+					{
+						dtheta = (-2. * 3.14) / 3.;
+					} else if( delta_y > 0 ) {
+						dtheta = (2. * 3.14) / 3.;
+					}
+					rotate_xyz = RotateY( dtheta );
+					break;
+				case OBJ_SCALE:
+					
+					if( delta_y < 0 )
+					{
+						dscaley = .9;
+					} else if( delta_y > 0 ) {
+						dscaley = 1.1;
+					}
+					break;
+
+				break; // BREAK gCurrentObjMode
+				}
+				break; // BREAK Y_HELD
+
 			case Z_HELD:
-				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-				rotate_xyz = RotateZ( dtheta );
-				dz = deltaxyz;
-				dscalez = deltaScalexyz;
+				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+				switch(gCurrentObjMode) {
+				case OBJ_TRANSLATE:
+					// take the world_transform component parallel to z/y/z, move object that far
+					
+					if( delta_x < 0 )
+					{
+						dz = -1. * delta;
+					} else if( delta_x > 0 ) {
+						dz = delta;
+					}
+					break;
+				case OBJ_ROTATE:					
+					if( delta_x < 0 )
+					{
+						dtheta = (-2. * 3.14) / 3.;
+					} else if( delta_x > 0 ) {
+						dtheta = (2. * 3.14) / 3.;
+					}
+					rotate_xyz = RotateZ( dtheta );
+					break;
+				case OBJ_SCALE:
+					
+					if( delta_x < 0 )
+					{
+						dscalez = .9;
+					} else if( delta_x > 0 ) {
+						dscalez = 1.1;
+					}
+					break;
+
+				break; // BREAK gCurrentObjMode
+				}
 				break; // BREAK Z_HELD
 			}
-			// at this point the value of 'held'is 0, 1 or 2 - specifying x/y/z axis.
-			// so it should be possible to write axis-agnostic code using 'held' as the index for which dimension
-			// right????
 			translate_xyz = Translate( dx, dy, dz );
 			scale_xyz = Scale( dscalex, dscaley, dscalez );
-			gCurrentObjMode = OBJ_SCALE;
-			switch(gCurrentObjMode) {
-			case OBJ_TRANSLATE:
-				// take the world_transform component parallel to x/y/z, move object that far
-				obj->translateXYZ = translate_xyz;
-				break;
-			case OBJ_ROTATE:
-				// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
-				obj->rotateXYZ = rotate_xyz;
-				break;
-			case OBJ_SCALE:
-				// like translate, but scale instead of moving
-				obj->scaleXYZ = Scale( dscalex, dscaley, dscalez );
-				break;
-			}
+
+			obj->translateXYZ = translate_xyz;
+			obj->rotateXYZ = rotate_xyz;
+			obj->scaleXYZ = scale_xyz;
 		}
 	}
 }
