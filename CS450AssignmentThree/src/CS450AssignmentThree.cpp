@@ -74,6 +74,9 @@ enum camera_mode {
 	CAMERA_ROT_Y,
 	CAMERA_ROT_Z,
 	CAMERA_TRANSLATE,
+	CAMERA_TRANSLATE_X,
+	CAMERA_TRANSLATE_Y,
+	CAMERA_TRANSLATE_Z,
 	CAMERA_DOLLY
 };
 obj_mode gCurrentObjMode = OBJ_TRANSLATE;
@@ -89,36 +92,11 @@ enum menu_val {
 	ITEM_CAMERA_ROT_Y,
 	ITEM_CAMERA_ROT_Z,
 	ITEM_CAMERA_TRANSLATION,
+	ITEM_CAMERA_TRANSLATION_X,
+	ITEM_CAMERA_TRANSLATION_Y,
+	ITEM_CAMERA_TRANSLATION_Z,
 	ITEM_DOLLY
 };
-
-int load_scene_by_file(string filename, vector<string>& obj_filename_list)
-{
-	ifstream input_scene_file;
-	string line;
-	string filepath;
-	int status = -1;
-
-	filepath = DATA_DIRECTORY_PATH + filename;
-
-	input_scene_file.open(filepath);
-	if(input_scene_file.is_open())
-	{
-		getline(input_scene_file, line);
-		while(!input_scene_file.eof())
-		{
-			getline(input_scene_file, line);
-			obj_filename_list.push_back(line);
-			cout << line << endl;
-		}
-		status = 0;
-		input_scene_file.close();
-	} else {
-		status = -1;
-	}
-	return status;
-}
-
 
 // does all vao/vbo setup for obj_data[i]
 void
@@ -213,7 +191,7 @@ void build_menus(void) {
 	int obj_submenu_id;
 	int camera_submenu_id;
 	int rot_submenu_id;
-
+	int trans_submenu_id;
 
 	obj_submenu_id = glutCreateMenu(menu);
 	glutAddMenuEntry("Translation", ITEM_OBJ_TRANSLATION);
@@ -224,6 +202,11 @@ void build_menus(void) {
 	glutAddMenuEntry("X", ITEM_CAMERA_ROT_X);
 	glutAddMenuEntry("Y", ITEM_CAMERA_ROT_Y);
 	glutAddMenuEntry("Z", ITEM_CAMERA_ROT_Z);
+
+	trans_submenu_id = glutCreateMenu(menu);
+	glutAddMenuEntry("X", CAMERA_TRANSLATE_X);
+	glutAddMenuEntry("Y", CAMERA_TRANSLATE_Y);
+	glutAddMenuEntry("Z", CAMERA_TRANSLATE_Z);
 
 	camera_submenu_id = glutCreateMenu(menu);
 	glutAddSubMenu("Rotation", rot_submenu_id);
@@ -435,7 +418,7 @@ init(mat4 projection)
     point4  eye(0., 0., 1., 1.);
     point4  at(0., 0., 0., 1.);
     vec4    up(0., 1., 0., 0.);
-
+	gCameraTranslate = Translate(-eye);
     gViewTransform = LookAt( eye, at, up );
 	gModelView = gViewTransform * Angel::identity();
 	manips[0].model_view = gViewTransform;
@@ -459,6 +442,7 @@ draw(bool selection = false) {
 
 	if(!selection) {
 		mat4 rot = grid.rotateX * grid.rotateY * grid.rotateZ;
+		gViewTransform = gCameraTranslate * (gCameraRotX * gCameraRotY * gCameraRotZ);
 		grid.model_view = gViewTransform * (grid.translateXYZ * (grid.scaleXYZ * rot));
 		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, grid.model_view);
 		// draw ground grid
@@ -601,7 +585,7 @@ display( void )
 	draw();
     glutSwapBuffers();
 }
-
+vec4 camera_vec;
 //----------------------------------------------------------------------------
 void
 motion(int x, int y) {
@@ -623,10 +607,11 @@ motion(int x, int y) {
 	mat4 rotate_y = Angel::identity();
 	mat4 rotate_z = Angel::identity();
 	mat4 scale_xyz = Angel::identity();
-
-
+	GLfloat v;
+	vec4 view_plane;
+	vec4 view_plane_perp;
 	vec4 mouse_drag(delta_x, delta_y, 0., 0.);
-	vec4 world_drag = gViewTransform * mouse_drag;
+	vec4 world_drag = normalize(gViewTransform * mouse_drag);
 	printf("world drag: (%f, %f, %f)\n", world_drag.x, world_drag.y, world_drag.z); 
 	switch(held) {
 	case NO_MANIP_HELD:
@@ -634,29 +619,70 @@ motion(int x, int y) {
 		switch(gCurrentCameraMode) {
 		case CAMERA_ROT_X:
 			//rotate_x = RotateX(gCameraThetaX);
+			if(world_drag.x < 0)
+			{
+				dtheta = -1.;
+			} else if(world_drag.x > 0) {
+				dtheta = 1.;
+			}
+			rotate_x = RotateX(dtheta);
+			gCameraRotX *= rotate_x;
 			break;
 		case CAMERA_ROT_Y:
+			if(world_drag.x < 0)
+			{
+				dtheta = -1.;
+			} else if(world_drag.x > 0) {
+				dtheta = 1.;
+			}
+			rotate_y = RotateY(dtheta);
+			gCameraRotY *= rotate_y;
 			//rotate_y = RotateY(gCameraThetaY);
 			break;
 		case CAMERA_ROT_Z:
+			if(world_drag.x < 0)
+			{
+				dtheta = -1.;
+			} else if(world_drag.x > 0) {
+				dtheta = 1.;
+			}
+			rotate_z = RotateZ(dtheta);
+			gCameraRotZ *= rotate_z;
 			//rotate_z = RotateZ(gCameraThetaZ);
 			break;
 		case CAMERA_TRANSLATE:
 			// figure out our view plane - perpendicular to viewtransform * vec4(eye - at)
-			// 
+			//
 			if(world_drag.x < 0)
 			{
-				dx = -1. * delta;
-			} else {
-				dx = delta;
+				delta = -1. * delta;
 			}
-
-			translate_xyz = Translate(-dx, -dy, -dz); // inverse
+			camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
+			camera_vec.w = 0.;
+			view_plane_perp = normalize(cross(camera_vec, vec4(0., 1., 0., 0.)));
+			view_plane_perp.w = 0.;
+			dx = delta * dot(view_plane_perp, vec4(1., 0., 0., 0.));
+			dy = delta * dot(view_plane_perp, vec4(0., 1., 0., 0.));
+			dz = delta * dot(view_plane_perp, vec4(0., 0., 1., 0.));
+			translate_xyz = Translate(dx, dy, dz); // inverse
 			gCameraTranslate *= translate_xyz; // needs all the rotates
-			gViewTransform = gCameraTranslate * gViewTransform;
 			break;
 		case CAMERA_DOLLY:
 			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
+			
+			if(world_drag.x < 0)
+			{
+				delta = -1. * delta;
+			}
+			camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
+			camera_vec.w = 0.;
+			view_plane = normalize(camera_vec);
+			dx = delta * dot(view_plane, vec4(1., 0., 0., 0.));
+			dy = delta * dot(view_plane, vec4(0., 1., 0., 0.));
+			dz = delta * dot(view_plane, vec4(0., 0., 1., 0.));
+			translate_xyz = Translate(dx, dy, dz); // inverse
+			
+			gCameraTranslate *= translate_xyz;
 			break;
 		}
 		break; // BREAK NO_MANIP_HELD
