@@ -39,7 +39,7 @@ GLuint  gProjectionLoc; // projection matrix uniform shader variable location
 
 mat4  gViewTransform;
 mat4 gModelView;
-// copied from example
+
 //Selection variables
 GLuint gSelectionColorR, gSelectionColorG, gSelectionColorB, gSelectionColorA;
 int gPicked = -1;
@@ -53,6 +53,11 @@ GLint gVertLoc, gNormLoc, gColorLoc;
 
 // camera transforms
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
+
+// particles stuff
+GLuint gNumParticles = 100;
+GLuint gTransformFeedback;
+GLuint gTransformBuffers[3]; // 0 = world triangle locations, 1 = positions, 2 = velocities?
 
 // which manipulator is being dragged
 enum manip {
@@ -348,17 +353,38 @@ init(mat4 projection)
 	init_grid();
 	init_manips();	
 
-	for( int i = 0; i < obj_data.size(); i++ )
-	{
-		// for some reason only part of this loop can be put into a function. WTF
+	GLuint size = 0;
+	for(int i = 0; i < obj_data.size(); i++) {
 		setup_obj(i);
+		size += obj_data[i]->data_soa.num_vertices * 3;
 	}
+
+
+
+	// set up transform feedback object and buffers
+	// I think this is unnecessary, there's a default TFO acording to pg 240 of red book
+	//glGenTransformFeedbacks(1, &gTransformFeedback);
+	//glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gTransformFeedback);
+	glGenBuffers(3, gTransformBuffers);
+	// allocate space for all object locations
+	glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0]);
+	glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, size, nullptr, GL_DYNAMIC_COPY);
+	glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gTransformBuffers[0], 0, size);
+
+
+	static const char *varyings[] =
+	{
+		"world_space_position"
+	};
+	glTransformFeedbackVaryings(gProgram, 1, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gProgram);
+
+
 
 	
 	int linked;
 	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
-	if( linked != GL_TRUE )
-	{
+	if(linked != GL_TRUE) {
 		int maxLength;
 		glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
 		maxLength = maxLength + 1;
@@ -419,7 +445,7 @@ init(mat4 projection)
     point4  at(0., 0., 0., 1.);
     vec4    up(0., 1., 0., 0.);
 	gCameraTranslate = Translate(-eye);
-    gViewTransform = LookAt( eye, at, up );
+    gViewTransform = LookAt(eye, at, up);
 	gModelView = gViewTransform * Angel::identity();
 	manips[0].model_view = gViewTransform;
 	manips[1].model_view = gViewTransform;
@@ -582,7 +608,9 @@ mouse( int button, int state, int x, int y )
 void
 display( void )
 {
+	glBeginTransformFeedback(GL_TRIANGLES);
 	draw();
+	glEndTransformFeedback();
     glutSwapBuffers();
 }
 vec4 camera_vec;

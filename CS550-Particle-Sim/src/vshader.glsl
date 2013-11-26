@@ -3,7 +3,10 @@
 in  vec4 vPosition;
 in  vec4 vNormal;
 in	vec4 vColor;
+
 out vec4 color;
+// for transform buffer
+out vec4 world_space_position;
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform mat4 ModelView;
@@ -23,6 +26,7 @@ void main()
 {
     // Transform vertex  position into eye coordinates
     vec3 pos = (ModelView * vPosition).xyz;
+	world_space_position = vec4(pos.xyz, 1.0);
 
     vec3 L = normalize( (ModelView * LightPosition).xyz - pos );
     vec3 E = normalize( -pos );
