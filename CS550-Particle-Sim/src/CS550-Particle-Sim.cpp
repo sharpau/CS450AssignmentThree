@@ -344,6 +344,7 @@ init(mat4 projection)
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
     gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+	GLuint gParticleSimualtionProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fshader.glsl");
     glUseProgram(gProgram);
 	gVertLoc = glGetAttribLocation(gProgram, "vPosition");
 	gNormLoc = glGetAttribLocation(gProgram, "vNormal");

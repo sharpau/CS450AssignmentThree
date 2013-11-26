@@ -76,5 +76,6 @@
     <None Include="src\vshader.glsl">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="src\vParticleSystemShader.glsl" />
   </ItemGroup>
 </Project>
