@@ -33,6 +33,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="src\fshader.glsl" />
+    <None Include="src\vParticleSystemShader.glsl" />
     <None Include="src\vshader.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

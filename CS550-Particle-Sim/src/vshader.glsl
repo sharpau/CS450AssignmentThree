@@ -1,4 +1,4 @@
-#version 150
+#version 420 core
 
 in  vec4 vPosition;
 in  vec4 vNormal;
@@ -25,10 +25,10 @@ uniform int selectionColorA;
 void main()
 {
     // Transform vertex  position into eye coordinates
-    vec3 pos = (ModelView * vPosition).xyz;
-	world_space_position = vec4(pos.xyz, 1.0);
+    vec4 pos = (ModelView * vPosition);
+	world_space_position = pos;
 
-    vec3 L = normalize( (ModelView * LightPosition).xyz - pos );
+    vec3 L = normalize( (ModelView * LightPosition) - pos );
     vec3 E = normalize( -pos );
     vec3 H = normalize( L + E );  //halfway vector
 
@@ -48,7 +48,7 @@ void main()
 	specular = vec4(0.0, 0.0, 0.0, 1.0);
     }
 
-    gl_Position = Projection * ModelView * vPosition;
+    gl_Position = Projection * pos;
 
     if(flag == 0) {
 		color = ambient + diffuse + specular;
