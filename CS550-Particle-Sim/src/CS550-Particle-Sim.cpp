@@ -12,6 +12,7 @@
 #endif
 
 // My includes
+#include <ctime>
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -57,7 +58,10 @@ mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 // particles stuff
 GLuint gNumParticles = 100;
 GLuint gTransformFeedback;
-GLuint gTransformBuffers[3]; // 0 = world triangle locations, 1 = positions, 2 = velocities?
+GLuint gTransformBuffers[2]; // 0 = world triangle locations, 1 = positions & velocities
+GLuint gParticleVAO, gParticleVBO;
+
+std::vector<GLfloat> gParticlePoints;
 
 // which manipulator is being dragged
 enum manip {
@@ -362,10 +366,7 @@ init(mat4 projection)
 
 
 	// set up transform feedback object and buffers
-	// I think this is unnecessary, there's a default TFO acording to pg 240 of red book
-	//glGenTransformFeedbacks(1, &gTransformFeedback);
-	//glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gTransformFeedback);
-	glGenBuffers(3, gTransformBuffers);
+	glGenBuffers(2, gTransformBuffers);
 	// allocate space for all object locations
 	glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0]);
 	glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, size, nullptr, GL_DYNAMIC_COPY);
@@ -379,8 +380,20 @@ init(mat4 projection)
 	glTransformFeedbackVaryings(gProgram, 1, varyings, GL_INTERLEAVED_ATTRIBS);
 	glLinkProgram(gProgram);
 
+	// let's generate some random points
+	gParticlePoints = std::vector<GLfloat>();
+	for (int i = 0; i < gNumParticles * 3; i++) {
+		gParticlePoints.push_back(2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX) - 1.0);
+	}
 
-
+	glGenVertexArrays(1, &gParticleVAO);
+	glBindVertexArray(gParticleVAO);
+	// set up the VBO
+	glGenBuffers(1, &gParticleVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleVBO);
+	glBufferData(GL_ARRAY_BUFFER, gParticlePoints.size(), gParticlePoints.data(); , GL_STATIC_DRAW);
+	// link particle vao to shader
+	// TODO
 	
 	int linked;
 	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
@@ -609,9 +622,18 @@ void
 display( void )
 {
 	glBeginTransformFeedback(GL_TRIANGLES);
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gTransformBuffers[0]);
 	draw();
 	glEndTransformFeedback();
-    glutSwapBuffers();
+
+	// SUPER TODO
+	// 2nd pass
+	// bind points vao
+	// bind points feedback buffer
+	glBeginTransformFeedback(GL_POINTS);
+	//glDrawArrays(GL_POINTS, 0, [book code is weird]);
+	glEndTransformFeedback();
+	glutSwapBuffers();
 }
 vec4 camera_vec;
 //----------------------------------------------------------------------------
@@ -893,6 +915,8 @@ void myReshape2(int w, int h)
 
 int main(int argc, char** argv)
 {
+	srand(time(0));
+
 	string application_info = "CS450AssignmentThree";
 	string *window_title = new string;
 	mat4 projection;
