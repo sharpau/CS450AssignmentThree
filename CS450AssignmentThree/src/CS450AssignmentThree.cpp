@@ -338,11 +338,11 @@ init(mat4 projection)
 	gCameraTranslate = Angel::identity();
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    gProgram = InitShader( "./src/vDirectionalLight.glsl", "./src/fDirectionalLight.glsl" );
+    gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
     glUseProgram(gProgram);
-	gVertLoc = glGetAttribLocation(gProgram, "VertexPosition");
-	gNormLoc = glGetAttribLocation(gProgram, "VertexNormal");
-	gColorLoc = glGetAttribLocation(gProgram, "VertexColor");
+	gVertLoc = glGetAttribLocation(gProgram, "vPosition");
+	gNormLoc = glGetAttribLocation(gProgram, "vNormal");
+	gColorLoc = glGetAttribLocation(gProgram, "vColor");
 
 	// build the special objects not loaded by user
 	init_grid();
@@ -370,29 +370,34 @@ init(mat4 projection)
     // Initialize shader lighting parameters
     // RAM: No need to change these...we'll learn about the details when we
     // cover Illumination and Shading
-	GLint gAmbientLoc, gLightColorLoc, gLightDirectionLoc, gHalfvectorLoc, gShininessLoc, gStrengthLoc;
-    vec3 gAmbient, gLightColor, gLightDirection, gHalfvector;
-	GLfloat gShininess, gStrength;
+    point4 light_position(0., 1.25, 1., 1.0);
+    color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+    color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+    color4 light_specular(1.0, 1.0, 1.0, 1.0);
 
-	gAmbientLoc = glGetUniformLocation(gProgram, "Ambient");
-	gLightColorLoc = glGetUniformLocation(gProgram, "LightColor");
-	gLightDirectionLoc = glGetUniformLocation(gProgram, "LightDirection");
-	gHalfvectorLoc = glGetUniformLocation(gProgram, "HalfVector");
-	gShininessLoc = glGetUniformLocation(gProgram, "Shininess");
-	gStrengthLoc = glGetUniformLocation(gProgram, "Strength");
-	gAmbient = vec3(1., 0., 0.);
-	gLightColor = vec3(0., 1., 0.);
-	gLightDirection = vec3(0., 0., 1.);
-	gHalfvector = vec3(1., 0., 0.);
-	gShininess = .5;
-	gStrength = 1.;
-	glUniform3fv(gAmbientLoc, 1, gAmbient);
-	glUniform3fv(gLightColorLoc, 1, gLightColor);
-	glUniform3fv(gLightDirectionLoc, 1, gLightDirection);
-	glUniform3fv(gHalfvectorLoc, 1, gHalfvector);
-	glUniform1f(gShininessLoc, 1.);
-	glUniform1f(gStrengthLoc, 1.);
+    color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+    color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+    color4 material_specular(1.0, 0.8, 0.0, 1.0);
+    float  material_shininess = 100.0;
 
+    color4 ambient_product = light_ambient * material_ambient;
+    color4 diffuse_product = light_diffuse * material_diffuse;
+    color4 specular_product = light_specular * material_specular;
+
+    glUniform4fv( glGetUniformLocation(gProgram, "AmbientProduct"),
+		  1, ambient_product );
+    glUniform4fv( glGetUniformLocation(gProgram, "DiffuseProduct"),
+		  1, diffuse_product );
+    glUniform4fv( glGetUniformLocation(gProgram, "SpecularProduct"),
+		  1, specular_product );
+
+    glUniform4fv( glGetUniformLocation(gProgram, "LightPosition"),
+		  1, light_position );
+
+    glUniform1f( glGetUniformLocation(gProgram, "Shininess"),
+		 material_shininess );
+
+	
 	//Set up selection colors and a gFlag -- copied from example
 	gSelectColorRLoc = glGetUniformLocation(gProgram,"selectionColorR");
 	gSelectColorGLoc = glGetUniformLocation(gProgram,"selectionColorG");
@@ -406,11 +411,9 @@ init(mat4 projection)
 	gSelectFlagLoc = glGetUniformLocation(gProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
 
-	
+
     gModelViewLoc = glGetUniformLocation(gProgram, "ModelView");
     gProjectionLoc = glGetUniformLocation(gProgram, "Projection");
-    //gModelViewLoc = glGetUniformLocation(gProgram, "MVMatrix");
-    //gProjectionLoc = glGetUniformLocation(gProgram, "MVPMatrix");
 
     point4  eye(0., 0., 1., 1.);
     point4  at(0., 0., 0., 1.);
@@ -907,8 +910,8 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		cin.get();
 		return -1;
 	}
-	Obj *tmp = new Obj("./Data/teapotL.obj");
-	obj_data.push_back(tmp);
+
+
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);

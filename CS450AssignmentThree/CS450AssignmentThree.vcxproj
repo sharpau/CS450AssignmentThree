@@ -32,9 +32,7 @@
     <ClCompile Include="src\SceneLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\fDirectionalLight.glsl" />
     <None Include="src\fshader.glsl" />
-    <None Include="src\vDirectionalLight.glsl" />
     <None Include="src\vshader.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

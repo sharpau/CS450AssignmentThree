@@ -76,11 +76,5 @@
     <None Include="src\vshader.glsl">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="src\fDirectionalLight.glsl">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="src\vDirectionalLight.glsl">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

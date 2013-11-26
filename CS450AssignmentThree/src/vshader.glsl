@@ -6,8 +6,6 @@ in	vec4 vColor;
 out vec4 color;
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
-uniform mat4 ViewTransform;
-uniform mat4 ModelTransform;
 uniform mat4 ModelView;
 uniform mat4 Projection;
 uniform vec4 LightPosition;
