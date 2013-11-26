@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CS450AssignmentThree", "CS450AssignmentThree\CS450AssignmentThree.vcxproj", "{44CDD105-9D58-41B8-9EF0-3924866DF065}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CS550-Particle-Sim", "CS550-Particle-Sim\CS550-Particle-Sim.vcxproj", "{44CDD105-9D58-41B8-9EF0-3924866DF065}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

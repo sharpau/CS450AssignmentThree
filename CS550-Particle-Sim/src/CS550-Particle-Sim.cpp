@@ -867,6 +867,7 @@ int main(int argc, char** argv)
 {
 	string application_info = "CS450AssignmentThree";
 	string *window_title = new string;
+	mat4 projection;
 
 	string usage = "Usage:\nCS450AssignmentThree O LEFT RIGHT BOTTOM TOP NEAR FAR\nwhere LEFT RIGHT BOTTOM TOP NEAR and FAR are floating point values that specify the \
 orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is the field of view in degrees, and NEAR and FAR are floating point values that specify the view volume in perspective.\n";
@@ -876,33 +877,33 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		bad_input = true;
 		cerr << "Not enough arguments.\n";
 	}
-	
-	bool o = false;
-	bool p = false;
-	o = !string("O").compare(argv[1]);
-	p = !string("P").compare(argv[1]);
-	
-	if(!o && !p) {
-		bad_input = true;
-		cerr << "1st parameter was neither 'O' nor 'P'.\n";
-	}
-	else if(o && argc != 8 || p && argc != 5) {
-		bad_input = true;
-		cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
-	}
+	else {
+		bool o = false;
+		bool p = false;
+		o = !string("O").compare(argv[1]);
+		p = !string("P").compare(argv[1]);
 
-	for(int i = 0; i < argc; i++) {
-		argv_copy.push_back(string(argv[i]));
-	}
-	
-	mat4 projection;
-	if(o) {
-		ortho = true;
-		projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
-	}
-	else if(p) {
-		ortho = false;
-		projection = Perspective(atof(argv_copy[2].c_str()), 1.0f, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
+		if (!o && !p) {
+			bad_input = true;
+			cerr << "1st parameter was neither 'O' nor 'P'.\n";
+		}
+		else if (o && argc != 8 || p && argc != 5) {
+			bad_input = true;
+			cerr << "Wrong number of arguments for 'O' or 'P' viewing.\n";
+		}
+
+		for (int i = 0; i < argc; i++) {
+			argv_copy.push_back(string(argv[i]));
+		}
+
+		if (o) {
+			ortho = true;
+			projection = Ortho(atof(argv_copy[2].c_str()), atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()), atof(argv_copy[5].c_str()), atof(argv_copy[6].c_str()), atof(argv_copy[7].c_str()));
+		}
+		else if (p) {
+			ortho = false;
+			projection = Perspective(atof(argv_copy[2].c_str()), 1.0f, atof(argv_copy[3].c_str()), atof(argv_copy[4].c_str()));
+		}
 	}
 
 	if(bad_input) {

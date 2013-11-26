@@ -62,7 +62,7 @@
     <ClCompile Include="src\Obj.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\CS450AssignmentThree.cpp">
+    <ClCompile Include="src\CS550-Particle-Sim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\SceneLoader.cpp">
