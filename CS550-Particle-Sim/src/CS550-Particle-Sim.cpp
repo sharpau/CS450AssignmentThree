@@ -447,18 +447,44 @@ init(void)
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(1, &gParticleSys.velocities_vbo);
 
+	vector<GLfloat> positions;
+	for (auto pos : gParticleSys.positions)
+	{
+		positions.push_back(pos.x);
+		positions.push_back(pos.y);
+		positions.push_back(pos.z);
+		positions.push_back(pos.w);
+	}
+
+	vector<GLfloat> colors;
+	for (auto pos : gParticleSys.colors)
+	{
+		colors.push_back(pos.x);
+		colors.push_back(pos.y);
+		colors.push_back(pos.z);
+		colors.push_back(pos.w);
+	}
+	
+	vector<GLfloat> normals;
+	for (auto pos : gParticleSys.normals)
+	{
+		normals.push_back(pos.x);
+		normals.push_back(pos.y);
+		normals.push_back(pos.z);
+		normals.push_back(pos.w);
+	}
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.positions.size()), gParticleSys.positions.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * positions.size()), positions.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gVertLoc);
 	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * colors.size()), colors.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.normals_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.normals.size()), gParticleSys.normals.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * normals.size()), normals.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gNormLoc);
 	glVertexAttribPointer(gNormLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
