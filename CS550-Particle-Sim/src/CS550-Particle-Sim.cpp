@@ -462,7 +462,7 @@ void init_particles()
 		GLfloat y = frand(-1, 1.);
 		GLfloat z = frand(-1, 1.);
 		GLfloat hsv[3];
-		hsv[0] = frand(180, 275);
+		hsv[0] = frand(90, 275);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
