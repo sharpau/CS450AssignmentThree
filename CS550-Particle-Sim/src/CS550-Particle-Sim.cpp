@@ -49,20 +49,37 @@ GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
 
-GLuint gProgram;
+GLuint gRenderProgram;
 GLint gVertLoc, gNormLoc, gColorLoc;
 
 // camera transforms
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 100;
+GLuint gNumParticles = 1000;
 GLuint gTransformFeedback;
 GLuint gTransformBuffers[2]; // 0 = world triangle locations, 1 = positions & velocities
 GLuint gParticleVAO, gParticleVBO; 
 GLuint gParticleProgram;
-
+mat4 gProjection;
+int gFrameCount = 0;
 std::vector<GLfloat> gParticlePoints;
+
+struct Particles
+{
+	vector<vec4> positions;
+	vector<vec4> colors;
+	vector<vec3> velocities;
+	vector<vec3> initial_velocities;
+	vector<vec4> normals;
+
+	GLuint positions_vbo;
+	GLuint colors_vbo;
+	GLuint velocities_vbo;
+	GLuint normals_vbo;
+	
+	GLuint vao;
+} gParticleSys;
 
 // which manipulator is being dragged
 enum manip {
@@ -290,6 +307,40 @@ init_grid(void) {
 }
 
 void
+init_lighting(void)
+{
+	// Initialize shader lighting parameters
+	// RAM: No need to change these...we'll learn about the details when we
+	// cover Illumination and Shading
+	point4 light_position(0., 1.25, 1., 1.0);
+	color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+	color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+	color4 light_specular(1.0, 1.0, 1.0, 1.0);
+
+	color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+	color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+	color4 material_specular(1.0, 0.8, 0.0, 1.0);
+	float  material_shininess = 100.0;
+
+	color4 ambient_product = light_ambient * material_ambient;
+	color4 diffuse_product = light_diffuse * material_diffuse;
+	color4 specular_product = light_specular * material_specular;
+
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "AmbientProduct"),
+		1, ambient_product);
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "DiffuseProduct"),
+		1, diffuse_product);
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "SpecularProduct"),
+		1, specular_product);
+
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "LightPosition"),
+		1, light_position);
+
+	glUniform1f(glGetUniformLocation(gRenderProgram, "Shininess"),
+		material_shininess);
+}
+
+void
 init_manips(void) {
 	for(int i = 0; i < 3; i++) {
 		manips[i] = Obj(DATA_DIRECTORY_PATH + "axis.obj");
@@ -338,123 +389,114 @@ init_manips(void) {
 
 }
 
+void init_particles()
+{
+	for (int idx = 0; idx < gNumParticles; idx++)
+	{
+		GLfloat x = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
+		GLfloat y = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
+		GLfloat z = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
+		GLfloat r = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		GLfloat g = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		GLfloat b = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		GLfloat vX0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
+		GLfloat vY0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
+		GLfloat vZ0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
+		GLfloat nX = 0.;
+		GLfloat nY = 0.;
+		GLfloat nZ = 1.;
+		gParticleSys.positions.push_back(vec4(x, y, z, 1.));
+		gParticleSys.colors.push_back(vec4(r, g, b, 1.));
+		gParticleSys.initial_velocities.push_back(vec3(vX0, vY0, vZ0));
+		gParticleSys.velocities.push_back(vec3(vX0, vY0, vZ0));
+		gParticleSys.normals.push_back(vec4(nX, nY, nZ, 0.));
+	}
+}
+void animate(int);
 // OpenGL initialization
 void
-init(mat4 projection)
+init(void)
 {
     gCameraRotX = Angel::identity();
 	gCameraRotY = Angel::identity();
 	gCameraRotZ = Angel::identity();
 	gCameraTranslate = Angel::identity();
+
+
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    gProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
+    gRenderProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fshader.glsl");
-    glUseProgram(gProgram);
-	gVertLoc = glGetAttribLocation(gProgram, "vPosition");
-	gNormLoc = glGetAttribLocation(gProgram, "vNormal");
-	gColorLoc = glGetAttribLocation(gProgram, "vColor");
+
+    glUseProgram(gRenderProgram);
+	gVertLoc = glGetAttribLocation(gRenderProgram, "vPosition");
+	gNormLoc = glGetAttribLocation(gRenderProgram, "vNormal");
+	gColorLoc = glGetAttribLocation(gRenderProgram, "vColor");
 
 	// build the special objects not loaded by user
-	init_grid();
-	init_manips();	
+	/*init_grid();
+	init_manips();*/
+	init_particles();
 
-	GLuint size = 0;
-	for(int i = 0; i < obj_data.size(); i++) {
-		setup_obj(i);
-		size += obj_data[i]->data_soa.num_vertices * 3;
-	}
+	glGenVertexArrays(1, &gParticleSys.vao);
+	glBindVertexArray(gParticleSys.vao);
+
+	GLuint particleSysVbos[] = { gParticleSys.positions_vbo, gParticleSys.colors_vbo, gParticleSys.velocities_vbo, gParticleSys.normals_vbo };
+	glGenBuffers(1, &gParticleSys.positions_vbo);
+	glGenBuffers(1, &gParticleSys.normals_vbo);
+	glGenBuffers(1, &gParticleSys.colors_vbo);
+	glGenBuffers(1, &gParticleSys.velocities_vbo);
+
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.positions.size()), gParticleSys.positions.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(gColorLoc);
+	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.normals_vbo);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat) * 4 * gParticleSys.normals.size()), gParticleSys.normals.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(gNormLoc);
+	glVertexAttribPointer(gNormLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 
 
-	// set up transform feedback object and buffers
-	glGenBuffers(2, gTransformBuffers);
-	// allocate space for all object locations
-	glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0]);
-	glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, size, nullptr, GL_DYNAMIC_COPY);
-	glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gTransformBuffers[0], 0, size);
-
-
-	static const char *varyings[] =
-	{
-		"world_space_position"
-	};
-	glTransformFeedbackVaryings(gProgram, 1, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gProgram);
-
-	// let's generate some random points
-	gParticlePoints = std::vector<GLfloat>();
-	for (int i = 0; i < gNumParticles * 3; i++) {
-		gParticlePoints.push_back(2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX) - 1.0);
-	}
-
-	glGenVertexArrays(1, &gParticleVAO);
-	glBindVertexArray(gParticleVAO);
-	// set up the VBO
-	glGenBuffers(1, &gParticleVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleVBO);
-	glBufferData(GL_ARRAY_BUFFER, gParticlePoints.size(), gParticlePoints.data(); , GL_STATIC_DRAW);
 	// link particle vao to shader
 	// TODO
 	
 	int linked;
-	glGetProgramiv(gProgram, GL_LINK_STATUS, &linked);
+	glGetProgramiv(gRenderProgram, GL_LINK_STATUS, &linked);
 	if(linked != GL_TRUE) {
 		int maxLength;
-		glGetProgramiv(gProgram, GL_INFO_LOG_LENGTH, &maxLength);
+		glGetProgramiv(gRenderProgram, GL_INFO_LOG_LENGTH, &maxLength);
 		maxLength = maxLength + 1;
 		GLchar *pLinkInfoLog = new GLchar[maxLength];
-		glGetProgramInfoLog(gProgram, maxLength, &maxLength, pLinkInfoLog);
+		glGetProgramInfoLog(gRenderProgram, maxLength, &maxLength, pLinkInfoLog);
 		cerr << *pLinkInfoLog << endl;
 	}
 
-    // Initialize shader lighting parameters
-    // RAM: No need to change these...we'll learn about the details when we
-    // cover Illumination and Shading
-    point4 light_position(0., 1.25, 1., 1.0);
-    color4 light_ambient(0.2, 0.2, 0.2, 1.0);
-    color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
-    color4 light_specular(1.0, 1.0, 1.0, 1.0);
-
-    color4 material_ambient(1.0, 0.0, 1.0, 1.0);
-    color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
-    color4 material_specular(1.0, 0.8, 0.0, 1.0);
-    float  material_shininess = 100.0;
-
-    color4 ambient_product = light_ambient * material_ambient;
-    color4 diffuse_product = light_diffuse * material_diffuse;
-    color4 specular_product = light_specular * material_specular;
-
-    glUniform4fv( glGetUniformLocation(gProgram, "AmbientProduct"),
-		  1, ambient_product );
-    glUniform4fv( glGetUniformLocation(gProgram, "DiffuseProduct"),
-		  1, diffuse_product );
-    glUniform4fv( glGetUniformLocation(gProgram, "SpecularProduct"),
-		  1, specular_product );
-
-    glUniform4fv( glGetUniformLocation(gProgram, "LightPosition"),
-		  1, light_position );
-
-    glUniform1f( glGetUniformLocation(gProgram, "Shininess"),
-		 material_shininess );
+	init_lighting();
 
 	
 	//Set up selection colors and a gFlag -- copied from example
-	gSelectColorRLoc = glGetUniformLocation(gProgram,"selectionColorR");
-	gSelectColorGLoc = glGetUniformLocation(gProgram,"selectionColorG");
-	gSelectColorBLoc = glGetUniformLocation(gProgram,"selectionColorB");
-	gSelectColorALoc = glGetUniformLocation(gProgram,"selectionColorA");
+	gSelectColorRLoc = glGetUniformLocation(gRenderProgram,"selectionColorR");
+	gSelectColorGLoc = glGetUniformLocation(gRenderProgram,"selectionColorG");
+	gSelectColorBLoc = glGetUniformLocation(gRenderProgram,"selectionColorB");
+	gSelectColorALoc = glGetUniformLocation(gRenderProgram,"selectionColorA");
 	glUniform1i(gSelectColorRLoc, gSelectionColorR);
 	glUniform1i(gSelectColorGLoc, gSelectionColorG);
 	glUniform1i(gSelectColorBLoc, gSelectionColorB);
 	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
-	gSelectFlagLoc = glGetUniformLocation(gProgram, "flag");
+	gSelectFlagLoc = glGetUniformLocation(gRenderProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
 
 
-    gModelViewLoc = glGetUniformLocation(gProgram, "ModelView");
-    gProjectionLoc = glGetUniformLocation(gProgram, "Projection");
+    gModelViewLoc = glGetUniformLocation(gRenderProgram, "ModelView");
+    gProjectionLoc = glGetUniformLocation(gRenderProgram, "Projection");
 
     point4  eye(0., 0., 1., 1.);
     point4  at(0., 0., 0., 1.);
@@ -470,85 +512,52 @@ init(mat4 projection)
 	}
 
     glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
-    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, projection);
+    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 
 
     glEnable(GL_DEPTH_TEST);
-    glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+	//glutTimerFunc(2000, animate, 0);
+}
+
+void animate(int arg)
+{
+	/*int vertex_count = 0;
+	for (auto obj : obj_data)
+	{
+		vertex_count += obj->data_soa.num_vertices;
+	}
+
+	GLuint modelMatLoc = glGetUniformLocation(gParticleProgram, "model_matrix");
+	GLuint projectionMatrixLoc = glGetUniformLocation(gParticleProgram, "projection_matrix");
+	GLuint triangleCountLoc = glGetUniformLocation(gParticleProgram, "triangle_count");
+
+	glUseProgram(gParticleProgram);
+	glUniformMatrix4fv(modelMatLoc, 1, GL_TRUE, gModelView);
+	glUniformMatrix4fv(projectionMatrixLoc, 1, GL_TRUE, gProjection);
+	glUniform1i(triangleCountLoc, vertex_count / 3);
+
+	glBindVertexArray(gParticleVAO);
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK, 0, gParticleVBO);
+	glBeginTransformFeedback(GL_POINTS);
+	glDrawArrays(GL_POINTS, 0, min(gNumParticles, (gFrameCount >> 3)));
+	glEndTransformFeedback();
+	gFrameCount++;
+	glutPostRedisplay();
+
+	glutTimerFunc(2000, animate, 0);*/
+}
+
+void myIdle()
+{
 }
 
 void
 draw(bool selection = false) {
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-	if(!selection) {
-		mat4 rot = grid.rotateX * grid.rotateY * grid.rotateZ;
-		gViewTransform = gCameraTranslate * (gCameraRotX * gCameraRotY * gCameraRotZ);
-		grid.model_view = gViewTransform * (grid.translateXYZ * (grid.scaleXYZ * rot));
-		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, grid.model_view);
-		// draw ground grid
-		glBindVertexArray(grid.vao);
-		glDrawArrays(GL_LINES, 0, grid.data_soa.num_vertices);
-	}
-
-	// draw user objects and manips
-	for( auto obj : obj_data )
-	{
-		//Normal render so set selection Flag to 0
-		gFlag = selection ? 1 : 0;
-		glUniform1i(gSelectFlagLoc, gFlag);
-		
-		if(obj->selected == true) {
-			// draw manipulators here
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			gFlag = 2;	// change flag to 2, for absolute coloring
-			glUniform1i(gSelectFlagLoc, gFlag);
-			for(int i = 0; i < 3; i++) {
-				// manips: should have 1 rotation ever. also always use their object's translate.
-				// and should use the gModelView as everything else does
-				mat4 rot_manip = manips[i].rotateX * manips[i].rotateY * manips[i].rotateZ;
-				mat4 transform = gViewTransform * obj->translateXYZ * rot_manip; // accumulation shenanigans
-				glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, transform);
-				
-
-				glBindVertexArray(manips[i].vao);
-				glDrawArrays(GL_TRIANGLES, 0, manips[i].data_soa.num_vertices);
-			}
-		
-			// back to normal rendering
-			gFlag = selection ? 1 : 0;
-			glUniform1i(gSelectFlagLoc, gFlag);
-
-			// wireframe
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glPolygonOffset(1.0, 2); //Try 1.0 and 2 for factor and units
-
-		}
-		else {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		}
-
-		if(selection) {
-			gSelectionColorR = obj->selectionR;
-			gSelectionColorG = obj->selectionG;
-			gSelectionColorB = obj->selectionB;
-			gSelectionColorA = obj->selectionA;
-
-			//sync with shader
-			glUniform1i(gSelectColorRLoc,gSelectionColorR);
-			glUniform1i(gSelectColorGLoc,gSelectionColorG);
-			glUniform1i(gSelectColorBLoc,gSelectionColorB);
-			glUniform1i(gSelectColorALoc,gSelectionColorA);
-		}
-
-		
-		mat4 rot = obj->rotateX * obj->rotateY * obj->rotateZ;
-		obj->model_view = gViewTransform * ( obj->translateXYZ * ( obj->scaleXYZ * rot) );
-		glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, obj->model_view);
-
-		glBindVertexArray(obj->vao);
-		glDrawArrays(GL_TRIANGLES, 0, obj->data_soa.num_vertices);
-	}
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(gRenderProgram);
+	glBindVertexArray(gParticleSys.vao);
+	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
 }
 
 //----------------------------------------------------------------------------
@@ -623,18 +632,12 @@ mouse( int button, int state, int x, int y )
 void
 display( void )
 {
-	glBeginTransformFeedback(GL_TRIANGLES);
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gTransformBuffers[0]);
 	draw();
-	glEndTransformFeedback();
 
 	// SUPER TODO
 	// 2nd pass
 	// bind points vao
 	// bind points feedback buffer
-	glBeginTransformFeedback(GL_POINTS);
-	//glDrawArrays(GL_POINTS, 0, [book code is weird]);
-	glEndTransformFeedback();
 	glutSwapBuffers();
 }
 vec4 camera_vec;
@@ -966,7 +969,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 		return -1;
 	}
 
-
+	obj_data.push_back(new Obj("./Data/bunnyS.obj"));
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -986,8 +989,8 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
     glewExperimental = GL_TRUE;
     glewInit();
 #endif
-
-	init(projection);
+	gProjection = projection;
+	init();
 
     //NOTE:  callbacks must go after window is created!!!
 	glutReshapeFunc(myReshape2);
@@ -996,6 +999,7 @@ orthographic view volume.\nor\nCS450AssignmentThree P FOV NEAR FAR\nwhere FOV is
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
     glutDisplayFunc(display);
+	glutIdleFunc(myIdle);
     glutMainLoop();
 
     return(0);

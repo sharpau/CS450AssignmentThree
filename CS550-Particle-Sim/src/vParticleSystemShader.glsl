@@ -2,8 +2,10 @@
 uniform mat4 model_matrix;
 uniform mat4 projection_matrix;
 uniform int triangle_count;
+
 in vec4 vPosition;
-layout (location = 1) in vec3 velocity;
+in vec3 velocity;
+
 out vec4 position_out;
 out vec3 velocity_out;
 uniform samplerBuffer geometry_tbo;
