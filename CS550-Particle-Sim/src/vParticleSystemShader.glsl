@@ -1,6 +1,6 @@
 #version 420 core
-uniform mat4 model_matrix;
-uniform mat4 projection_matrix;
+uniform mat4 ModelView;
+uniform mat4 Projection;
 uniform int triangle_count;
 
 vec4 vPosition;
@@ -84,5 +84,5 @@ void main(void)
 	}
 	velocity_out = new_velocity * 0.9999;
 	position_out = new_position;
-	gl_Position = projection_matrix * (model_matrix * vPosition);
+	gl_Position = Projection * (ModelView * vPosition);
 }; // Note the mystical semicolon the red book includes... Don't really know why

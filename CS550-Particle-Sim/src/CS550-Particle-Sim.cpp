@@ -19,6 +19,8 @@
 #include "Obj.h"
 #include "SceneLoader.h"
 
+void animate(int);
+
 using namespace std;
 // globals
 const string DATA_DIRECTORY_PATH = "./Data/";
@@ -48,15 +50,18 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
-GLint gVertLoc, gNormLoc, gColorLoc;
+GLint gVertLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 
 // camera transforms
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 1000;
+GLuint gNumParticles = 100;
 GLuint gTransformFeedback;
-GLuint gTransformBuffers[2]; // 0 = world triangle locations, 1 = positions & velocities
+
+GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
+GLint const POSITIONS_VELOCITIES_BUFF_IDX = 1;
+GLuint gTransformBuffers[3]; // 0 = world triangle locations, 1 = positions & velocities
 GLuint gParticleVAO, gParticleVBO; 
 
 // Shader programs
@@ -69,15 +74,13 @@ struct Particles
 	vector<vec4> positions;
 	vector<vec4> colors;
 	vector<vec3> velocities;
-	vector<vec3> initial_velocities;
-	vector<vec4> normals;
 
 	GLuint positions_vbo;
 	GLuint colors_vbo;
 	GLuint velocities_vbo;
 	GLuint normals_vbo;
 	
-	GLuint vao;
+	GLuint vao[2];
 } gParticleSys;
 
 // which manipulator is being dragged
@@ -460,13 +463,11 @@ void init_particles()
 		GLfloat y = frand(-1, 1.);
 		GLfloat z = frand(-1, 1.);
 		GLfloat hsv[3];
-		hsv[0] = frand(0, 120);
+		hsv[0] = frand(180, 275);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
 		HSVtoRGB(hsv, rgb);
-		if (rgb[0] == 0. && rgb[1] == 0. && rgb[2] == 0.)
-			fprintf(stdout, "shit");
 		GLfloat vX0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vY0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vZ0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
@@ -478,10 +479,9 @@ void init_particles()
 		gParticleSys.velocities.push_back(vec3(vX0, vY0, vZ0));
 	}
 }
-void animate(int);
 
 
-#include <math.h>
+GLint gVelocityLoc;
 // OpenGL initialization
 void
 init(void)
@@ -500,36 +500,44 @@ init(void)
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 
 	mount_shader(gPassThroughProgram);
-	gVertLoc = glGetAttribLocation(gPassThroughProgram, "vPosition");
-	gColorLoc = glGetAttribLocation(gPassThroughProgram, "vColor");
+	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
+	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
 
 	// build the special objects not loaded by user
 	/*init_grid();
 	init_manips();*/
 	init_particles();
 
-	glGenVertexArrays(1, &gParticleSys.vao);
-	glBindVertexArray(gParticleSys.vao);
-	
 	glGenBuffers(1, &gParticleSys.positions_vbo);
-	glGenBuffers(1, &gParticleSys.normals_vbo);
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(1, &gParticleSys.velocities_vbo);
 
+	glGenVertexArrays(2, gParticleSys.vao);
+
+	glBindVertexArray(gParticleSys.vao[0]);
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* gParticleSys.positions.size()), gParticleSys.positions.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.positions.size()), gParticleSys.positions.data(), GL_DYNAMIC_COPY);
 	glEnableVertexAttribArray(gVertLoc);
 	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-
-	// link particle vao to shader
-	// TODO
 	
+
+	glBindVertexArray(gParticleSys.vao[1]);
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.velocities_vbo);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 3 * gParticleSys.velocities.size()), gParticleSys.velocities.data(), GL_DYNAMIC_COPY);
+	glEnableVertexAttribArray(gVelocityLoc);
+	glVertexAttribPointer(gVelocityLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+	glGenTransformFeedbacks(3, gTransformBuffers);
+
+	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gTransformBuffers[0]);
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0], gParticleSys.velocities_vbo);
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0], gParticleSys.positions_vbo);
+
 	int linked;
 	glGetProgramiv(gRenderProgram, GL_LINK_STATUS, &linked);
 	if(linked != GL_TRUE) {
@@ -619,19 +627,44 @@ void update_particles(void)
 {
 	// do the stuff where the particles move yo!
 	mount_shader(gParticleProgram);
+	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
+	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
+	glUniform1i(gTriangleCountLoc, 0);
+	static const char *varyings[] =
+	{
+		"position_out", "gl_NextBuffer", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, sizeof(varyings) / sizeof(varyings[0]), varyings, GL_SEPARATE_ATTRIBS);
+	glLinkProgram(gParticleProgram);
 
+
+	if ((gFrameCount & 1) != 0)
+	{
+		glBindVertexArray(gParticleSys.vao[0]);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0], gParticleSys.positions_vbo);
+	}
+	else
+	{
+		glBindVertexArray(gParticleSys.vao[1]);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK, gTransformBuffers[0], gParticleSys.velocities_vbo);
+	}
+	glBeginTransformFeedback(GL_POINTS);
+	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
+	glEndTransformFeedback();
+	gFrameCount++;
 }
 
 void render_particles(void)
 {
 	glPointSize(10.);
 	mount_shader(gPassThroughProgram);
-	glBindVertexArray(gParticleSys.vao);
+	glBindVertexArray(gParticleSys.vao[0]);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
 }
 
 void
 draw(bool selection = false) {
+	update_particles();
 	update_particles();
 	render_particles();
 }

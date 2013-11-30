@@ -794,9 +794,14 @@ vec4 minus(const vec4& a, const vec4&  b )
 }
 
 inline
-void printv(const vec4& a )
+void printv(const vec4& a)
 {
-    printf("%f %f %f %f \n\n", a[0], a[1], a[2], a[3]);
+	printf("%f %f %f %f \n\n", a[0], a[1], a[2], a[3]);
+}
+inline
+void printv3(const vec3& a)
+{
+	printf("%f %f %f %f \n\n", a[0], a[1], a[2]);
 }
 
 inline
