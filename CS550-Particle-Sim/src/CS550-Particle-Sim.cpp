@@ -62,7 +62,6 @@ GLuint gTransformFeedback;
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
 GLint const POSITIONS_VELOCITIES_BUFF_IDX = 1;
 GLuint gTransformBuffers[3]; // 0 = world triangle locations, 1 = positions & velocities
-GLuint gParticleVAO, gParticleVBO; 
 
 // Shader programs
 GLuint gParticleProgram, gPassThroughProgram, gRenderProgram;
