@@ -1,4 +1,4 @@
-#version 420 core
+#version 150 core
 uniform mat4 ModelView;
 uniform mat4 Projection;
 uniform int triangle_count;

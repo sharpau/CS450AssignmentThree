@@ -1,4 +1,4 @@
-#version 420 core
+#version 150 core
 
 in  vec4 vPosition;
 in  vec4 vNormal;
@@ -28,8 +28,8 @@ void main()
     vec4 pos = (ModelView * vPosition);
 	world_space_position = pos;
 
-    vec3 L = normalize( (ModelView * LightPosition) - pos );
-    vec3 E = normalize( -pos );
+    vec3 L = vec3(normalize( (ModelView * LightPosition) - pos ));
+    vec3 E = vec3(normalize( -pos ));
     vec3 H = normalize( L + E );  //halfway vector
 
     //To correctly transform normals
