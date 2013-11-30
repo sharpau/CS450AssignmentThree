@@ -63,7 +63,6 @@ GLuint gParticleVAO, gParticleVBO;
 GLuint gParticleProgram, gPassThroughProgram, gRenderProgram;
 mat4 gProjection;
 int gFrameCount = 0;
-std::vector<GLfloat> gParticlePoints;
 
 struct Particles
 {
@@ -125,11 +124,16 @@ enum menu_val {
 	ITEM_DOLLY
 };
 
+inline float frand(float lower_bound, float upper_bound)
+{
+	float r = lower_bound + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (upper_bound - lower_bound)));
+	return r;
+}
 void mount_shader(GLint shader_program)
 {
 	glUseProgram(shader_program);
-	gVertLoc = glGetAttribLocation(gPassThroughProgram, "vPosition");
-	gColorLoc = glGetAttribLocation(gPassThroughProgram, "vColor");
+	gVertLoc = glGetAttribLocation(shader_program, "vPosition");
+	gColorLoc = glGetAttribLocation(shader_program, "vColor");
 	gNormLoc = glGetAttribLocation(shader_program, "vNormal");
 	gModelViewLoc = glGetUniformLocation(shader_program, "ModelView");
 	gProjectionLoc = glGetUniformLocation(shader_program, "Projection");
@@ -449,17 +453,20 @@ init_manips(void) {
 
 void init_particles()
 {
+	int count = 0;
 	for (int idx = 0; idx < gNumParticles; idx++)
 	{
-		GLfloat x = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
-		GLfloat y = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
-		GLfloat z = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
+		GLfloat x = frand(-1, 1.);
+		GLfloat y = frand(-1, 1.);
+		GLfloat z = frand(-1, 1.);
 		GLfloat hsv[3];
-		hsv[0] = 360 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		hsv[0] = frand(0, 120);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
 		HSVtoRGB(hsv, rgb);
+		if (rgb[0] == 0. && rgb[1] == 0. && rgb[2] == 0.)
+			fprintf(stdout, "shit");
 		GLfloat vX0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vY0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vZ0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
@@ -468,23 +475,23 @@ void init_particles()
 		GLfloat nZ = 1.;
 		gParticleSys.positions.push_back(vec4(x, y, z, 1.));
 		gParticleSys.colors.push_back(vec4(rgb[0], rgb[1], rgb[2], 1.));
-		gParticleSys.initial_velocities.push_back(vec3(vX0, vY0, vZ0));
 		gParticleSys.velocities.push_back(vec3(vX0, vY0, vZ0));
-		gParticleSys.normals.push_back(vec4(nX, nY, nZ, 0.));
 	}
 }
 void animate(int);
 
 
+#include <math.h>
 // OpenGL initialization
 void
 init(void)
 {
+	
     gCameraRotX = Angel::identity();
 	gCameraRotY = Angel::identity();
 	gCameraRotZ = Angel::identity();
 	gCameraTranslate = Angel::identity();
-
+	
 
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
@@ -554,7 +561,7 @@ init(void)
     gModelViewLoc = glGetUniformLocation(gRenderProgram, "ModelView");
     gProjectionLoc = glGetUniformLocation(gRenderProgram, "Projection");
 
-    point4  eye(0., 0., 1., 1.);
+    point4  eye(0., 0., 2.5, 1.);
     point4  at(0., 0., 0., 1.);
     vec4    up(0., 1., 0., 0.);
 	gCameraTranslate = Translate(-eye);
