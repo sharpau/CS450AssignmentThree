@@ -124,6 +124,17 @@ enum menu_val {
 	ITEM_CAMERA_TRANSLATION_Z,
 	ITEM_DOLLY
 };
+
+void mount_shader(GLint shader_program)
+{
+	glUseProgram(shader_program);
+	gVertLoc = glGetAttribLocation(gPassThroughProgram, "vPosition");
+	gColorLoc = glGetAttribLocation(gPassThroughProgram, "vColor");
+	gNormLoc = glGetAttribLocation(shader_program, "vNormal");
+	gModelViewLoc = glGetUniformLocation(shader_program, "ModelView");
+	gProjectionLoc = glGetUniformLocation(shader_program, "Projection");
+}
+
 //----------------------------------------------------------------------------
 // the HSV color model will be as follows
 // h : [0 - 360]
@@ -463,6 +474,8 @@ void init_particles()
 	}
 }
 void animate(int);
+
+
 // OpenGL initialization
 void
 init(void)
@@ -479,7 +492,7 @@ init(void)
 	gPassThroughProgram = InitShader("./src/vPassThrough.glsl", "./src/fPassThrough.glsl");
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 
-	glUseProgram(gPassThroughProgram);
+	mount_shader(gPassThroughProgram);
 	gVertLoc = glGetAttribLocation(gPassThroughProgram, "vPosition");
 	gColorLoc = glGetAttribLocation(gPassThroughProgram, "vColor");
 
@@ -575,7 +588,7 @@ void animate(int arg)
 	GLuint projectionMatrixLoc = glGetUniformLocation(gParticleProgram, "projection_matrix");
 	GLuint triangleCountLoc = glGetUniformLocation(gParticleProgram, "triangle_count");
 
-	glUseProgram(gParticleProgram);
+	mount_shader(gParticleProgram);
 	glUniformMatrix4fv(modelMatLoc, 1, GL_TRUE, gModelView);
 	glUniformMatrix4fv(projectionMatrixLoc, 1, GL_TRUE, gProjection);
 	glUniform1i(triangleCountLoc, vertex_count / 3);
@@ -598,14 +611,14 @@ void myIdle()
 void update_particles(void)
 {
 	// do the stuff where the particles move yo!
-	glUseProgram(gParticleProgram);
+	mount_shader(gParticleProgram);
 
 }
 
 void render_particles(void)
 {
 	glPointSize(10.);
-	glUseProgram(gPassThroughProgram);
+	mount_shader(gPassThroughProgram);
 	glBindVertexArray(gParticleSys.vao);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
 }

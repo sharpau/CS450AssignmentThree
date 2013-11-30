@@ -3,7 +3,7 @@ uniform mat4 model_matrix;
 uniform mat4 projection_matrix;
 uniform int triangle_count;
 
-in vec4 vPosition;
+vec4 vPosition;
 in vec3 velocity;
 
 out vec4 position_out;
