@@ -9,7 +9,7 @@ in vec3 velocity;
 out vec4 position_out;
 out vec3 velocity_out;
 uniform samplerBuffer geometry_tbo;
-uniform float time_step = 0.02;
+uniform float time_step = .02;
 
 bool intersect(vec3 origin, vec3 direction, vec3 v0, vec3 v1, vec3 v2, out vec3 point)
 {

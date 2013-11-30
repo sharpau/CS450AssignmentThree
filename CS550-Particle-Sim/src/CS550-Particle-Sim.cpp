@@ -56,7 +56,7 @@ GLint gVertLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 100;
+GLuint gNumParticles = 10000;
 GLuint gTransformFeedback;
 
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
@@ -485,7 +485,7 @@ GLint gVelocityLoc;
 void
 init(void)
 {
-	
+	srand(100000);
     gCameraRotX = Angel::identity();
 	gCameraRotY = Angel::identity();
 	gCameraRotZ = Angel::identity();
@@ -628,24 +628,25 @@ void update_particles(void)
 	mount_shader(gParticleProgram);
 	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
 	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
+
 	glUniform1i(gTriangleCountLoc, 0);
 	static const char *varyings[] =
 	{
 		"position_out", "gl_NextBuffer", "velocity_out"
 	};
-	glTransformFeedbackVaryings(gParticleProgram, sizeof(varyings) / sizeof(varyings[0]), varyings, GL_SEPARATE_ATTRIBS);
+	glTransformFeedbackVaryings(gParticleProgram, sizeof(varyings) / sizeof(varyings[0]), varyings, GL_INTERLEAVED_ATTRIBS);
 	glLinkProgram(gParticleProgram);
 
 
 	if ((gFrameCount & 1) != 0)
 	{
 		glBindVertexArray(gParticleSys.vao[0]);
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, gTransformBuffers[0], gParticleSys.positions_vbo);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
 	}
 	else
 	{
 		glBindVertexArray(gParticleSys.vao[1]);
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK, gTransformBuffers[0], gParticleSys.velocities_vbo);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
 	}
 	glBeginTransformFeedback(GL_POINTS);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
