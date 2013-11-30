@@ -32,8 +32,10 @@
     <ClCompile Include="src\SceneLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="src\fPassThrough.glsl" />
     <None Include="src\fshader.glsl" />
     <None Include="src\vParticleSystemShader.glsl" />
+    <None Include="src\vPassThrough.glsl" />
     <None Include="src\vshader.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

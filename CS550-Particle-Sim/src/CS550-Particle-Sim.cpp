@@ -48,8 +48,6 @@ GLint gFlag = 0;
 GLuint gSelectFlagLoc;
 GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
-
-GLuint gRenderProgram;
 GLint gVertLoc, gNormLoc, gColorLoc;
 
 // camera transforms
@@ -60,7 +58,9 @@ GLuint gNumParticles = 1000;
 GLuint gTransformFeedback;
 GLuint gTransformBuffers[2]; // 0 = world triangle locations, 1 = positions & velocities
 GLuint gParticleVAO, gParticleVBO; 
-GLuint gParticleProgram;
+
+// Shader programs
+GLuint gParticleProgram, gPassThroughProgram, gRenderProgram;
 mat4 gProjection;
 int gFrameCount = 0;
 std::vector<GLfloat> gParticlePoints;
@@ -124,7 +124,54 @@ enum menu_val {
 	ITEM_CAMERA_TRANSLATION_Z,
 	ITEM_DOLLY
 };
+//----------------------------------------------------------------------------
+// the HSV color model will be as follows
+// h : [0 - 360]
+// s : [0 - 1]
+// v : [0 - 1]
+// If you want it differently (in a 2 * pi scale, 256 instead of 1, etc,
+// you'll have to change it yourself.
+// rgb is returned in 0-1 scale (ready for color3f)
+void HSVtoRGB(float hsv[3], float rgb[3]) {
+	float tmp1 = hsv[2] * (1 - hsv[1]);
+	float tmp2 = hsv[2] * (1 - hsv[1] * (hsv[0] / 60.0f - (int)(hsv[0] / 60.0f)));
+	float tmp3 = hsv[2] * (1 - hsv[1] * (1 - (hsv[0] / 60.0f - (int)(hsv[0] / 60.0f))));
+	switch ((int)(hsv[0] / 60)) {
+	case 0:
+		rgb[0] = hsv[2];
+		rgb[1] = tmp3;
+		rgb[2] = tmp1;
+		break;
+	case 1:
+		rgb[0] = tmp2;
+		rgb[1] = hsv[2];
+		rgb[2] = tmp1;
+		break;
+	case 2:
+		rgb[0] = tmp1;
+		rgb[1] = hsv[2];
+		rgb[2] = tmp3;
+		break;
+	case 3:
+		rgb[0] = tmp1;
+		rgb[1] = tmp2;
+		rgb[2] = hsv[2];
+		break;
+	case 4:
+		rgb[0] = tmp3;
+		rgb[1] = tmp1;
+		rgb[2] = hsv[2];
+		break;
+	case 5:
+		rgb[0] = hsv[2];
+		rgb[1] = tmp1;
+		rgb[2] = tmp2;
+		break;
+	default:
+		std::cout << "Inconceivable!\n";
+	}
 
+}
 // does all vao/vbo setup for obj_data[i]
 void
 setup_obj(int i) {
@@ -396,9 +443,12 @@ void init_particles()
 		GLfloat x = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
 		GLfloat y = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
 		GLfloat z = 2 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)-1.0;
-		GLfloat r = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
-		GLfloat g = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
-		GLfloat b = static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		GLfloat hsv[3];
+		hsv[0] = 360 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX);
+		hsv[1] = 1.;
+		hsv[2] = 1.;
+		GLfloat rgb[3] = { 0., 0., 0. };
+		HSVtoRGB(hsv, rgb);
 		GLfloat vX0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vY0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
 		GLfloat vZ0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
@@ -406,7 +456,7 @@ void init_particles()
 		GLfloat nY = 0.;
 		GLfloat nZ = 1.;
 		gParticleSys.positions.push_back(vec4(x, y, z, 1.));
-		gParticleSys.colors.push_back(vec4(r, g, b, 1.));
+		gParticleSys.colors.push_back(vec4(rgb[0], rgb[1], rgb[2], 1.));
 		gParticleSys.initial_velocities.push_back(vec3(vX0, vY0, vZ0));
 		gParticleSys.velocities.push_back(vec3(vX0, vY0, vZ0));
 		gParticleSys.normals.push_back(vec4(nX, nY, nZ, 0.));
@@ -425,13 +475,13 @@ init(void)
 
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-    gRenderProgram = InitShader( "./src/vshader.glsl", "./src/fshader.glsl" );
-	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fshader.glsl");
+    gRenderProgram = InitShader( "./src/vshader.glsl", "./src/fPassThrough.glsl" );
+	gPassThroughProgram = InitShader("./src/vPassThrough.glsl", "./src/fPassThrough.glsl");
+	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 
-    glUseProgram(gRenderProgram);
-	gVertLoc = glGetAttribLocation(gRenderProgram, "vPosition");
-	gNormLoc = glGetAttribLocation(gRenderProgram, "vNormal");
-	gColorLoc = glGetAttribLocation(gRenderProgram, "vColor");
+	glUseProgram(gPassThroughProgram);
+	gVertLoc = glGetAttribLocation(gPassThroughProgram, "vPosition");
+	gColorLoc = glGetAttribLocation(gPassThroughProgram, "vColor");
 
 	// build the special objects not loaded by user
 	/*init_grid();
@@ -440,12 +490,12 @@ init(void)
 
 	glGenVertexArrays(1, &gParticleSys.vao);
 	glBindVertexArray(gParticleSys.vao);
-
-	GLuint particleSysVbos[] = { gParticleSys.positions_vbo, gParticleSys.colors_vbo, gParticleSys.velocities_vbo, gParticleSys.normals_vbo };
+	
 	glGenBuffers(1, &gParticleSys.positions_vbo);
 	glGenBuffers(1, &gParticleSys.normals_vbo);
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(1, &gParticleSys.velocities_vbo);
+
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
 	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* gParticleSys.positions.size()), gParticleSys.positions.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gVertLoc);
@@ -455,12 +505,6 @@ init(void)
 	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.normals_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* gParticleSys.normals.size()), gParticleSys.normals.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(gNormLoc);
-	glVertexAttribPointer(gNormLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
 
 
 	// link particle vao to shader
@@ -554,12 +598,14 @@ void myIdle()
 void update_particles(void)
 {
 	// do the stuff where the particles move yo!
+	glUseProgram(gParticleProgram);
+
 }
 
 void render_particles(void)
 {
 	glPointSize(10.);
-	glUseProgram(gRenderProgram);
+	glUseProgram(gPassThroughProgram);
 	glBindVertexArray(gParticleSys.vao);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
 }
