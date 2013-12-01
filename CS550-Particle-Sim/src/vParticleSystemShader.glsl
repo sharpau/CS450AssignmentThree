@@ -9,7 +9,14 @@ in vec3 velocity;
 out vec4 position_out;
 out vec3 velocity_out;
 uniform samplerBuffer geometry_tbo;
-uniform float time_step = .02;
+uniform float time_step = .0002;
+
+float XMIN = -1.;
+float XMAX = 1.;
+float YMIN = -1.;
+float YMAX = 1.;
+float ZMIN = -1.;
+float ZMAX = 1.;
 
 bool intersect(vec3 origin, vec3 direction, vec3 v0, vec3 v1, vec3 v2, out vec3 point)
 {
@@ -83,6 +90,8 @@ void main(void)
 		new_velocity *= vec3(0.2, 0.1, -0.3);
 	}
 	velocity_out = new_velocity * 0.9999;
+	
+
 	position_out = new_position;
 	gl_Position = Projection * (ModelView * vPosition);
 }; // Note the mystical semicolon the red book includes... Don't really know why

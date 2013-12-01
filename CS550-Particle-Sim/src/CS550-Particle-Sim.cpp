@@ -56,7 +56,7 @@ GLint gVertLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 10000;
+GLuint gNumParticles = 10;
 GLuint gTransformFeedback;
 
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
@@ -456,20 +456,22 @@ init_manips(void) {
 void init_particles()
 {
 	int count = 0;
+	GLfloat dHue = (275. - 90.) / (GLfloat)gNumParticles;
+	GLfloat hue0 = 90.;
 	for (int idx = 0; idx < gNumParticles; idx++)
 	{
 		GLfloat x = frand(-1, 1.);
 		GLfloat y = frand(-1, 1.);
 		GLfloat z = frand(-1, 1.);
 		GLfloat hsv[3];
-		hsv[0] = frand(90, 275);
+		hsv[0] = hue0 + dHue * idx; // frand(90., 275.);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
 		HSVtoRGB(hsv, rgb);
-		GLfloat vX0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
-		GLfloat vY0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
-		GLfloat vZ0 = 9 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)+1.;
+		GLfloat vX0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX))+1.;
+		GLfloat vY0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;
+		GLfloat vZ0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;
 		GLfloat nX = 0.;
 		GLfloat nY = 0.;
 		GLfloat nZ = 1.;
@@ -497,6 +499,14 @@ init(void)
     gRenderProgram = InitShader( "./src/vshader.glsl", "./src/fPassThrough.glsl" );
 	gPassThroughProgram = InitShader("./src/vPassThrough.glsl", "./src/fPassThrough.glsl");
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
+
+	glUniform1i(gTriangleCountLoc, 0);
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_SEPARATE_ATTRIBS);
+	glLinkProgram(gParticleProgram);
 
 	mount_shader(gPassThroughProgram);
 	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
@@ -629,14 +639,6 @@ void update_particles(void)
 	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
 	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
 
-	glUniform1i(gTriangleCountLoc, 0);
-	static const char *varyings[] =
-	{
-		"position_out", "gl_NextBuffer", "velocity_out"
-	};
-	glTransformFeedbackVaryings(gParticleProgram, sizeof(varyings) / sizeof(varyings[0]), varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-
 
 	if ((gFrameCount & 1) != 0)
 	{
@@ -664,9 +666,8 @@ void render_particles(void)
 
 void
 draw(bool selection = false) {
-	update_particles();
-	update_particles();
 	render_particles();
+	update_particles();
 }
 
 //----------------------------------------------------------------------------
@@ -755,230 +756,230 @@ vec4 camera_vec;
 //----------------------------------------------------------------------------
 void
 motion(int x, int y) {
-	int delta_x = last_x - x;
-	int delta_y = last_y - y;
-	last_x = x;
-	last_y = y;
+	//int delta_x = last_x - x;
+	//int delta_y = last_y - y;
+	//last_x = x;
+	//last_y = y;
 
-	GLfloat delta = .01;
-	GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
-	GLfloat scale_down = .99;
-	GLfloat scale_up = 1.01;
-	dx = dy = dz = .0;
-	dscalex = dscaley = dscalez = 1.;
-	dtheta = 0.;
+	//GLfloat delta = .01;
+	//GLfloat dx, dy, dz, dtheta, dscalex, dscaley, dscalez;
+	//GLfloat scale_down = .99;
+	//GLfloat scale_up = 1.01;
+	//dx = dy = dz = .0;
+	//dscalex = dscaley = dscalez = 1.;
+	//dtheta = 0.;
 
-	mat4 translate_xyz = Angel::identity();
-	mat4 rotate_x = Angel::identity();
-	mat4 rotate_y = Angel::identity();
-	mat4 rotate_z = Angel::identity();
-	mat4 scale_xyz = Angel::identity();
-	GLfloat v;
-	vec4 view_plane;
-	vec4 view_plane_perp;
-	vec4 mouse_drag(delta_x, delta_y, 0., 0.);
-	vec4 world_drag = normalize(gViewTransform * mouse_drag);
-	printf("world drag: (%f, %f, %f)\n", world_drag.x, world_drag.y, world_drag.z); 
-	switch(held) {
-	case NO_MANIP_HELD:
-		printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
-		switch(gCurrentCameraMode) {
-		case CAMERA_ROT_X:
-			//rotate_x = RotateX(gCameraThetaX);
-			if(world_drag.x < 0)
-			{
-				dtheta = -1.;
-			} else if(world_drag.x > 0) {
-				dtheta = 1.;
-			}
-			rotate_x = RotateX(dtheta);
-			gCameraRotX *= rotate_x;
-			break;
-		case CAMERA_ROT_Y:
-			if(world_drag.x < 0)
-			{
-				dtheta = -1.;
-			} else if(world_drag.x > 0) {
-				dtheta = 1.;
-			}
-			rotate_y = RotateY(dtheta);
-			gCameraRotY *= rotate_y;
-			//rotate_y = RotateY(gCameraThetaY);
-			break;
-		case CAMERA_ROT_Z:
-			if(world_drag.x < 0)
-			{
-				dtheta = -1.;
-			} else if(world_drag.x > 0) {
-				dtheta = 1.;
-			}
-			rotate_z = RotateZ(dtheta);
-			gCameraRotZ *= rotate_z;
-			//rotate_z = RotateZ(gCameraThetaZ);
-			break;
-		case CAMERA_TRANSLATE:
-			// figure out our view plane - perpendicular to viewtransform * vec4(eye - at)
-			//
-			if(world_drag.x < 0)
-			{
-				delta = -1. * delta;
-			}
-			camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
-			camera_vec.w = 0.;
-			view_plane_perp = normalize(cross(camera_vec, vec4(0., 1., 0., 0.)));
-			view_plane_perp.w = 0.;
-			dx = delta * dot(view_plane_perp, vec4(1., 0., 0., 0.));
-			dy = delta * dot(view_plane_perp, vec4(0., 1., 0., 0.));
-			dz = delta * dot(view_plane_perp, vec4(0., 0., 1., 0.));
-			translate_xyz = Translate(dx, dy, dz); // inverse
-			gCameraTranslate *= translate_xyz; // needs all the rotates
-			break;
-		case CAMERA_DOLLY:
-			// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
-			
-			if(world_drag.x < 0)
-			{
-				delta = -1. * delta;
-			}
-			camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
-			camera_vec.w = 0.;
-			view_plane = normalize(camera_vec);
-			dx = delta * dot(view_plane, vec4(1., 0., 0., 0.));
-			dy = delta * dot(view_plane, vec4(0., 1., 0., 0.));
-			dz = delta * dot(view_plane, vec4(0., 0., 1., 0.));
-			translate_xyz = Translate(dx, dy, dz); // inverse
-			
-			gCameraTranslate *= translate_xyz;
-			break;
-		}
-		break; // BREAK NO_MANIP_HELD
-	}
-	for( auto obj : obj_data ) {
-		if( obj->selected ) {
-			switch(held) {
-			case X_HELD:
-				printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
-				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
-				switch(gCurrentObjMode) {
-				case OBJ_TRANSLATE:
-					// take the world_transform component parallel to x/y/z, move object that far
-					if( delta_x < 0 )
-					{
-						dx = delta;
-					} else if( delta_x > 0 ) {
-						dx = -1. * delta;
-					}
-					break;
-				case OBJ_ROTATE:
-					if( delta_x < 0 )
-					{
-						dtheta = 1.;
-					} else if( delta_x > 0 ) {
-						dtheta = -1.;
-					}
-					obj->thetaX+= dtheta;
-					rotate_x = RotateX( obj->thetaX );
-					obj->rotateX = rotate_x;
-					break;
-					// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
-				case OBJ_SCALE:
-					
-					if( delta_x < 0 )
-					{
-						dscalex = scale_up;
-					} else if( delta_x > 0 ) {
-						dscalex = scale_down;
-					}
-					break;
+	//mat4 translate_xyz = Angel::identity();
+	//mat4 rotate_x = Angel::identity();
+	//mat4 rotate_y = Angel::identity();
+	//mat4 rotate_z = Angel::identity();
+	//mat4 scale_xyz = Angel::identity();
+	//GLfloat v;
+	//vec4 view_plane;
+	//vec4 view_plane_perp;
+	//vec4 mouse_drag(delta_x, delta_y, 0., 0.);
+	//vec4 world_drag = normalize(gViewTransform * mouse_drag);
+	//printf("world drag: (%f, %f, %f)\n", world_drag.x, world_drag.y, world_drag.z); 
+	//switch(held) {
+	//case NO_MANIP_HELD:
+	//	printf("scene dragged %d px in x, %d px in y\n", delta_x, delta_y);
+	//	switch(gCurrentCameraMode) {
+	//	case CAMERA_ROT_X:
+	//		//rotate_x = RotateX(gCameraThetaX);
+	//		if(world_drag.x < 0)
+	//		{
+	//			dtheta = -1.;
+	//		} else if(world_drag.x > 0) {
+	//			dtheta = 1.;
+	//		}
+	//		rotate_x = RotateX(dtheta);
+	//		gCameraRotX *= rotate_x;
+	//		break;
+	//	case CAMERA_ROT_Y:
+	//		if(world_drag.x < 0)
+	//		{
+	//			dtheta = -1.;
+	//		} else if(world_drag.x > 0) {
+	//			dtheta = 1.;
+	//		}
+	//		rotate_y = RotateY(dtheta);
+	//		gCameraRotY *= rotate_y;
+	//		//rotate_y = RotateY(gCameraThetaY);
+	//		break;
+	//	case CAMERA_ROT_Z:
+	//		if(world_drag.x < 0)
+	//		{
+	//			dtheta = -1.;
+	//		} else if(world_drag.x > 0) {
+	//			dtheta = 1.;
+	//		}
+	//		rotate_z = RotateZ(dtheta);
+	//		gCameraRotZ *= rotate_z;
+	//		//rotate_z = RotateZ(gCameraThetaZ);
+	//		break;
+	//	case CAMERA_TRANSLATE:
+	//		// figure out our view plane - perpendicular to viewtransform * vec4(eye - at)
+	//		//
+	//		if(world_drag.x < 0)
+	//		{
+	//			delta = -1. * delta;
+	//		}
+	//		camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
+	//		camera_vec.w = 0.;
+	//		view_plane_perp = normalize(cross(camera_vec, vec4(0., 1., 0., 0.)));
+	//		view_plane_perp.w = 0.;
+	//		dx = delta * dot(view_plane_perp, vec4(1., 0., 0., 0.));
+	//		dy = delta * dot(view_plane_perp, vec4(0., 1., 0., 0.));
+	//		dz = delta * dot(view_plane_perp, vec4(0., 0., 1., 0.));
+	//		translate_xyz = Translate(dx, dy, dz); // inverse
+	//		gCameraTranslate *= translate_xyz; // needs all the rotates
+	//		break;
+	//	case CAMERA_DOLLY:
+	//		// take the world_Transform component perpendicular to the viewing plane, move the camera in/out that much
+	//		
+	//		if(world_drag.x < 0)
+	//		{
+	//			delta = -1. * delta;
+	//		}
+	//		camera_vec = gViewTransform * vec4(0., 0., 0., 1.);
+	//		camera_vec.w = 0.;
+	//		view_plane = normalize(camera_vec);
+	//		dx = delta * dot(view_plane, vec4(1., 0., 0., 0.));
+	//		dy = delta * dot(view_plane, vec4(0., 1., 0., 0.));
+	//		dz = delta * dot(view_plane, vec4(0., 0., 1., 0.));
+	//		translate_xyz = Translate(dx, dy, dz); // inverse
+	//		
+	//		gCameraTranslate *= translate_xyz;
+	//		break;
+	//	}
+	//	break; // BREAK NO_MANIP_HELD
+	//}
+	//for( auto obj : obj_data ) {
+	//	if( obj->selected ) {
+	//		switch(held) {
+	//		case X_HELD:
+	//			printf("manipulator %d dragged %d px in x, %d px in y\n", held, delta_x, delta_y);
+	//			// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+	//			switch(gCurrentObjMode) {
+	//			case OBJ_TRANSLATE:
+	//				// take the world_transform component parallel to x/y/z, move object that far
+	//				if( delta_x < 0 )
+	//				{
+	//					dx = delta;
+	//				} else if( delta_x > 0 ) {
+	//					dx = -1. * delta;
+	//				}
+	//				break;
+	//			case OBJ_ROTATE:
+	//				if( delta_x < 0 )
+	//				{
+	//					dtheta = 1.;
+	//				} else if( delta_x > 0 ) {
+	//					dtheta = -1.;
+	//				}
+	//				obj->thetaX+= dtheta;
+	//				rotate_x = RotateX( obj->thetaX );
+	//				obj->rotateX = rotate_x;
+	//				break;
+	//				// take the world_transform component perpendicular to x/y/z, turn that into degrees-to-rotate
+	//			case OBJ_SCALE:
+	//				
+	//				if( delta_x < 0 )
+	//				{
+	//					dscalex = scale_up;
+	//				} else if( delta_x > 0 ) {
+	//					dscalex = scale_down;
+	//				}
+	//				break;
 
-				break; // BREAK gCurrentObjMode
-				}
-				break; // BREAK X_HELD
+	//			break; // BREAK gCurrentObjMode
+	//			}
+	//			break; // BREAK X_HELD
 
-			case Y_HELD:
-				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
-				switch(gCurrentObjMode) {
-				case OBJ_TRANSLATE:
-					// take the world_transform component parallel to y/y/z, move object that far
-					
-					if( delta_y < 0 )
-					{
-						dy = -1. * delta;
-					} else if( delta_y > 0 ) {
-						dy = delta;
-					}
-					break;
-				case OBJ_ROTATE:
-					
-					if( delta_y < 0 )
-					{
-						dtheta = 1.;
-					} else if( delta_y > 0 ) {
-						dtheta = -1.;
-					}
-					obj->thetaY+= dtheta;
-					rotate_y = RotateY( obj->thetaY );
-					obj->rotateY = rotate_y;
-					break;
-				case OBJ_SCALE:
-					
-					if( delta_y < 0 )
-					{
-						dscaley = scale_down;
-					} else if( delta_y > 0 ) {
-						dscaley = scale_up;
-					}
-					break;
+	//		case Y_HELD:
+	//			// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+	//			switch(gCurrentObjMode) {
+	//			case OBJ_TRANSLATE:
+	//				// take the world_transform component parallel to y/y/z, move object that far
+	//				
+	//				if( delta_y < 0 )
+	//				{
+	//					dy = -1. * delta;
+	//				} else if( delta_y > 0 ) {
+	//					dy = delta;
+	//				}
+	//				break;
+	//			case OBJ_ROTATE:
+	//				
+	//				if( delta_y < 0 )
+	//				{
+	//					dtheta = 1.;
+	//				} else if( delta_y > 0 ) {
+	//					dtheta = -1.;
+	//				}
+	//				obj->thetaY+= dtheta;
+	//				rotate_y = RotateY( obj->thetaY );
+	//				obj->rotateY = rotate_y;
+	//				break;
+	//			case OBJ_SCALE:
+	//				
+	//				if( delta_y < 0 )
+	//				{
+	//					dscaley = scale_down;
+	//				} else if( delta_y > 0 ) {
+	//					dscaley = scale_up;
+	//				}
+	//				break;
 
-				break; // BREAK gCurrentObjMode
-				}
-				break; // BREAK Y_HELD
+	//			break; // BREAK gCurrentObjMode
+	//			}
+	//			break; // BREAK Y_HELD
 
-			case Z_HELD:
-				// TODO: NEED TO ACCOMODATE gViewTransform for all cases
-				switch(gCurrentObjMode) {
-				case OBJ_TRANSLATE:
-					// take the world_transform component parallel to z/y/z, move object that far
-					
-					if( delta_x < 0 )
-					{
-						dz = -1. * delta;
-					} else if( delta_x > 0 ) {
-						dz = delta;
-					}
-					break;
-				case OBJ_ROTATE:					
-					if( delta_x < 0 )
-					{
-						dtheta = 1.;
-					} else if( delta_x > 0 ) {
-						dtheta = -1.;
-					}
-					obj->thetaZ+= dtheta;
-					rotate_z = RotateZ( obj->thetaZ );
-					obj->rotateZ = rotate_z;
-					break;
-				case OBJ_SCALE:
-					
-					if( delta_x < 0 )
-					{
-						dscalez = scale_down;
-					} else if( delta_x > 0 ) {
-						dscalez = scale_up;
-					}
-					break;
+	//		case Z_HELD:
+	//			// TODO: NEED TO ACCOMODATE gViewTransform for all cases
+	//			switch(gCurrentObjMode) {
+	//			case OBJ_TRANSLATE:
+	//				// take the world_transform component parallel to z/y/z, move object that far
+	//				
+	//				if( delta_x < 0 )
+	//				{
+	//					dz = -1. * delta;
+	//				} else if( delta_x > 0 ) {
+	//					dz = delta;
+	//				}
+	//				break;
+	//			case OBJ_ROTATE:					
+	//				if( delta_x < 0 )
+	//				{
+	//					dtheta = 1.;
+	//				} else if( delta_x > 0 ) {
+	//					dtheta = -1.;
+	//				}
+	//				obj->thetaZ+= dtheta;
+	//				rotate_z = RotateZ( obj->thetaZ );
+	//				obj->rotateZ = rotate_z;
+	//				break;
+	//			case OBJ_SCALE:
+	//				
+	//				if( delta_x < 0 )
+	//				{
+	//					dscalez = scale_down;
+	//				} else if( delta_x > 0 ) {
+	//					dscalez = scale_up;
+	//				}
+	//				break;
 
-				break; // BREAK gCurrentObjMode
-				}
-				break; // BREAK Z_HELD
-			}
-			translate_xyz = Translate( obj->translateXYZ[0][3] + dx, obj->translateXYZ[1][3] + dy, obj->translateXYZ[2][3] + dz );
-			scale_xyz = Scale( obj->scaleXYZ[0][0] * dscalex, obj->scaleXYZ[1][1] * dscaley, obj->scaleXYZ[2][2] * dscalez );
+	//			break; // BREAK gCurrentObjMode
+	//			}
+	//			break; // BREAK Z_HELD
+	//		}
+	//		translate_xyz = Translate( obj->translateXYZ[0][3] + dx, obj->translateXYZ[1][3] + dy, obj->translateXYZ[2][3] + dz );
+	//		scale_xyz = Scale( obj->scaleXYZ[0][0] * dscalex, obj->scaleXYZ[1][1] * dscaley, obj->scaleXYZ[2][2] * dscalez );
 
-			obj->translateXYZ = translate_xyz;
-			obj->scaleXYZ = scale_xyz;
-		}
-	}
+	//		obj->translateXYZ = translate_xyz;
+	//		obj->scaleXYZ = scale_xyz;
+	//	}
+	//}
 }
 
 //----------------------------------------------------------------------------
