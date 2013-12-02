@@ -317,6 +317,7 @@ void update_particles(void)
 		thing = 4;
 		glBindVertexArray(gParticleSys.vao[0]);
 		printf("positions\n");
+		glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[0]);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
 	}
 	else
@@ -324,6 +325,7 @@ void update_particles(void)
 		thing = 3;
 		glBindVertexArray(gParticleSys.vao[1]);
 		printf("velocities\n");
+		glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[1]);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
 	}
 	glBeginTransformFeedback(GL_POINTS);
