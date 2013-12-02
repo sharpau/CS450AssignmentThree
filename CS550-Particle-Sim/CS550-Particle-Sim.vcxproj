@@ -24,12 +24,15 @@
     <ClInclude Include="include\vec.h" />
     <ClInclude Include="src\Obj.h" />
     <ClInclude Include="src\SceneLoader.h" />
+    <ClInclude Include="src\technique.h" />
+    <ClInclude Include="src\util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InitShader.cpp" />
     <ClCompile Include="src\CS550-Particle-Sim.cpp" />
     <ClCompile Include="src\Obj.cpp" />
     <ClCompile Include="src\SceneLoader.cpp" />
+    <ClCompile Include="src\technique.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\fPassThrough.glsl" />

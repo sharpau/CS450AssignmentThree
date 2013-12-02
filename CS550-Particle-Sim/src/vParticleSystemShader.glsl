@@ -3,13 +3,14 @@ uniform mat4 ModelView;
 uniform mat4 Projection;
 uniform int triangle_count;
 
-vec4 vPosition;
-in vec3 velocity;
+layout(location = 0) in vec4 vPosition;
+layout(location = 1) in vec4 vColor;
+layout(location = 2) in vec3 vVelocity;
 
 out vec4 position_out;
 out vec3 velocity_out;
 uniform samplerBuffer geometry_tbo;
-uniform float time_step = .0002;
+uniform float time_step = .02;
 
 float XMIN = -1.;
 float XMAX = 1.;
@@ -64,7 +65,7 @@ vec3 reflect_vector(vec3 v, vec3 n)
 void main(void)
 {
 	vec3 acceleration = vec3(0.0, -0.3, 0.0);
-	vec3 new_velocity = velocity + acceleration * time_step;
+	vec3 new_velocity = .05 + acceleration * time_step;
 	vec4 new_position = vPosition + vec4(new_velocity * time_step, 0.0);
 	vec3 v0, v1, v2;
 	vec3 point;
