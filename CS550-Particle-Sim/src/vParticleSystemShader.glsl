@@ -11,7 +11,7 @@ out vec4 color;
 out vec4 position_out;
 out vec3 velocity_out;
 uniform samplerBuffer geometry_tbo;
-uniform float time_step = .0002;
+uniform float time_step = .02;
 
 float XMIN = -1.;
 float XMAX = 1.;
@@ -66,7 +66,7 @@ vec3 reflect_vector(vec3 v, vec3 n)
 void main(void)
 {
 	vec3 acceleration = vec3(0.0, -0.3, 0.0);
-	vec3 new_velocity = velocity + acceleration * time_step;
+	vec3 new_velocity = vec3(.1, 0., 0.) + acceleration * time_step;
 	vec4 new_position = vPosition + vec4(new_velocity * time_step, 0.0);
 	vec3 v0, v1, v2;
 	vec3 point;
