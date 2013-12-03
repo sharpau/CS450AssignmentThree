@@ -76,8 +76,14 @@
     <None Include="src\vshader.glsl">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="src\vParticleSystemShader.glsl" />
-    <None Include="src\vPassThrough.glsl" />
-    <None Include="src\fPassThrough.glsl" />
+    <None Include="src\fPassThrough.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="src\vParticleSystemShader.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="src\vPassThrough.glsl">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

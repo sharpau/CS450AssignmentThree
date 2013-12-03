@@ -91,10 +91,10 @@ void main(void)
 		0.0, 1.0);
 		new_velocity *= vec3(0.2, 0.1, -0.3);
 	}
-	velocity_out = new_velocity * 0.9999;
+	velocity_out = vec3(1., 2., 3.);//new_velocity * 0.9999;
 	
 
-	position_out = new_position;
+	position_out = vec4(4.,5.,6., 8.);//new_position;
 	gl_Position = Projection * (ModelView * vPosition);
 	color = vColor;
 } // Note the mystical semicolon the red book includes... Don't really know why
