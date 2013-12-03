@@ -275,24 +275,14 @@ void update_particles(void)
 	printf("positions and velocities\n");
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[gParticleSys.currVB]);
 	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[gParticleSys.currTFB]);
-	///if (t == GL_TRUE)
-	//glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
-
-	//static bool first = true;
 
 	glBeginTransformFeedback(GL_POINTS);
-	/*if (first) {
-		first = false;
-		glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
-	}
-	else {
-		glDrawTransformFeedback(GL_POINTS, gParticleSys.transformFeedbackObject[gParticleSys.currVB]);
-	}*/
+
 	glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
 	glEndTransformFeedback();
 
 
-	bool t = glIsTransformFeedback(gParticleSys.transformFeedbackObject[gParticleSys.currTFB]);
+	bool t = glIsTransformFeedback(gParticleSys.transformFeedbackObject[0]);
 	int stride = 4;
 	GLfloat * data;
 	data = (GLfloat *)glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY);
@@ -308,8 +298,11 @@ void update_particles(void)
 
 void myIdle(void)
 {
-	//update_particles();
-	//glutPostRedisplay();
+	update_particles();
+	// swap VB and TFB
+	gParticleSys.currVB = gParticleSys.currTFB;
+	gParticleSys.currTFB = (gParticleSys.currTFB + 1) & 0x1;
+	glutPostRedisplay();
 }
 
 void render_particles(void)
@@ -323,12 +316,9 @@ void render_particles(void)
 
 void
 draw(bool selection = false) {
-	update_particles();
+	//update_particles();
 	render_particles();
 
-	// swap VB and TFB
-	gParticleSys.currVB = gParticleSys.currTFB;
-	gParticleSys.currTFB = (gParticleSys.currTFB + 1) & 0x1;
 }
 
 //----------------------------------------------------------------------------
