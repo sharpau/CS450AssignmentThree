@@ -250,7 +250,7 @@ int Obj::load_from_file(string in_filename)
 		this->load_data( );
 
 		cout << "Loaded file '" << this->filename << "'" << endl;
-		cout << "# of Vertexes: " << this->data_soa.positions.size() / this->data_soa.positions_stride << endl;
+		cout << "# of Vertices: " << this->data_soa.positions.size() / this->data_soa.positions_stride << endl;
 		cout << "# of Normals: " << this->data_soa.normals.size() / this->data_soa.normals_stride << endl;
 		bad_file = false;
 		status = 0;
