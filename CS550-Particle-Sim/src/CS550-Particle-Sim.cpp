@@ -278,16 +278,17 @@ void update_particles(void)
 	///if (t == GL_TRUE)
 	//glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
 
-	static bool first = true;
+	//static bool first = true;
 
 	glBeginTransformFeedback(GL_POINTS);
-	if (first) {
+	/*if (first) {
 		first = false;
 		glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
 	}
 	else {
 		glDrawTransformFeedback(GL_POINTS, gParticleSys.transformFeedbackObject[gParticleSys.currVB]);
-	}
+	}*/
+	glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
 	glEndTransformFeedback();
 
 
@@ -316,7 +317,8 @@ void render_particles(void)
 	glPointSize(10.);
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
-	glDrawTransformFeedback(GL_POINTS, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
+	//glDrawTransformFeedback(GL_POINTS, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
+	glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
 }
 
 void
