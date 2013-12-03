@@ -77,6 +77,9 @@ struct Particles
 	GLuint normals_vbo;
 	GLuint double_buffer_vbo[2];
 
+	GLuint currVB;
+	GLuint currTFB;
+
 	GLuint vao;
 	GLuint transformFeedbackObject[2];
 } gParticleSys;
@@ -209,6 +212,8 @@ init(void)
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[i]);
 		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.pos_vel_data.size()), gParticleSys.pos_vel_data.data(), GL_DYNAMIC_DRAW);
 	}
+	gParticleSys.currVB = 0;
+	gParticleSys.currTFB = 1;
 
 	glEnableVertexAttribArray(gVertLoc);
 	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
@@ -223,6 +228,23 @@ init(void)
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
+
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_SEPARATE_ATTRIBS);
+	glLinkProgram(gParticleProgram);
+	int linked;
+	glGetProgramiv(gParticleProgram, GL_LINK_STATUS, &linked);
+	if (linked != GL_TRUE) {
+		int maxLength;
+		glGetProgramiv(gParticleProgram, GL_INFO_LOG_LENGTH, &maxLength);
+		maxLength = maxLength + 1;
+		GLchar *pLinkInfoLog = new GLchar[maxLength];
+		glGetProgramInfoLog(gParticleProgram, maxLength, &maxLength, pLinkInfoLog);
+		cerr << *pLinkInfoLog << endl;
+	}
 
 
 
@@ -246,92 +268,65 @@ init(void)
 
 void update_particles(void)
 {
-	static const char *varyings[] =
-	{
-		"position_out", "velocity_out"
-	};
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_SEPARATE_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-	int linked;
-	glGetProgramiv(gParticleProgram, GL_LINK_STATUS, &linked);
-	if (linked != GL_TRUE) {
-		int maxLength;
-		glGetProgramiv(gParticleProgram, GL_INFO_LOG_LENGTH, &maxLength);
-		maxLength = maxLength + 1;
-		GLchar *pLinkInfoLog = new GLchar[maxLength];
-		glGetProgramInfoLog(gParticleProgram, maxLength, &maxLength, pLinkInfoLog);
-		cerr << *pLinkInfoLog << endl;
-	}
 
 	glUniform1i(gTriangleCountLoc, 0);
 
-	GLfloat * data;
 
-	int thing = 0;
-	thing = 4;
-	printf("positions\n");
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.velocities_vbo);
-	bool t = glIsTransformFeedback(gParticleSys.positions_vbo);
+	printf("positions and velocities\n");
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[gParticleSys.currVB]);
+	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[gParticleSys.currTFB]);
 	///if (t == GL_TRUE)
 	//glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
 
+	static bool first = true;
+
 	glBeginTransformFeedback(GL_POINTS);
-	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
+	if (first) {
+		first = false;
+		glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
+	}
+	else {
+		glDrawTransformFeedback(GL_POINTS, gParticleSys.transformFeedbackObject[gParticleSys.currVB]);
+	}
 	glEndTransformFeedback();
 
+
+	bool t = glIsTransformFeedback(gParticleSys.transformFeedbackObject[gParticleSys.currTFB]);
+	int stride = 4;
+	GLfloat * data;
 	data = (GLfloat *)glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY);
-	for (int i = 0; i < gParticleSys.positions.size(); i++)
+	for (int i = 0; i < gParticleSys.pos_vel_data.size(); i++)
 	{
-		int idx = thing * i;
-		if (thing == 3)
-			printf("%i: %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2]);
-		else
-			printf("%i: %f, %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2], data[idx + 3]);
+		int idx = stride * i;
+		printf("%i: %f, %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2], data[idx + 3]);
 	}
 	glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
 
-
-
-	thing = 3;
-
-	printf("velocities\n");
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[1]);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
-	//glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
-
-	glBeginTransformFeedback(GL_POINTS);
-	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
-	glEndTransformFeedback();
-	
-	data = (GLfloat *)glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY);
-	for (int i = 0; i < gParticleSys.positions.size(); i++)
-	{
-		int idx = thing * i;
-		if (thing == 3)
-			printf("%i: %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2]);
-		else
-			printf("%i: %f, %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2], data[idx + 3]);
-	}
-	glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
 	gFrameCount++;
 }
 
 void myIdle(void)
 {
-	update_particles();
-	glutPostRedisplay();
+	//update_particles();
+	//glutPostRedisplay();
 }
 
 void render_particles(void)
 {
 	glPointSize(10.);
-	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
+
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
+	glDrawTransformFeedback(GL_POINTS, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
 }
 
 void
 draw(bool selection = false) {
+	update_particles();
 	render_particles();
+
+	// swap VB and TFB
+	gParticleSys.currVB = gParticleSys.currTFB;
+	gParticleSys.currTFB = (gParticleSys.currTFB + 1) & 0x1;
 }
 
 //----------------------------------------------------------------------------
