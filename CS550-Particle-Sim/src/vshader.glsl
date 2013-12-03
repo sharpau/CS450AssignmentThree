@@ -49,6 +49,19 @@ void main()
     }
 
     gl_Position = Projection * pos;
-	color = vColor;
+
+    if(flag == 0) {
+		color = ambient + diffuse + specular;
+		color.a = 1.0;
+	} 
+	else if(flag == 1) {
+		color.r = float(selectionColorR)/float(255);
+		color.g = float(selectionColorG)/float(255);
+		color.b = float(selectionColorB)/float(255);
+		color.a = float(selectionColorA)/float(255);
+	}
+	else if(flag == 2) {
+		color = vColor;
+	}
     
 }

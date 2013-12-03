@@ -35,8 +35,8 @@ typedef Angel::vec4  point4;
 
 
 // global variables
-GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
-GLuint  gProjectionLoc; // projection matrix uniform shader variable location
+GLint  gModelViewLoc;  // model-view matrix uniform shader variable location
+GLint  gProjectionLoc; // projection matrix uniform shader variable location
 
 mat4  gViewTransform;
 mat4 gModelView;
@@ -45,8 +45,8 @@ mat4 gModelView;
 GLuint gSelectionColorR, gSelectionColorG, gSelectionColorB, gSelectionColorA;
 int gPicked = -1;
 GLint gFlag = 0;
-GLuint gSelectFlagLoc;
-GLuint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
+GLint gSelectFlagLoc;
+GLint gSelectColorRLoc, gSelectColorGLoc, gSelectColorBLoc, gSelectColorALoc;
 
 GLint gVertLoc, gVelocityLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 
@@ -330,7 +330,6 @@ void init_objects() {
 
 	gRenderProgram = InitShader("./src/vshader.glsl", "./src/fshader.glsl");
 	mount_shader(gRenderProgram);
-	gSelectFlagLoc = glGetUniformLocation(gRenderProgram, "flag");
 
 	// build the special objects not loaded by user
 	init_grid();
@@ -363,7 +362,36 @@ void init_objects() {
 	glUniform1i(gSelectColorBLoc, gSelectionColorB);
 	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
+	gSelectFlagLoc = glGetUniformLocation(gRenderProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
+
+	// lighting
+	point4 light_position(0., 1.25, 1., 1.0);
+	color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+	color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+	color4 light_specular(1.0, 1.0, 1.0, 1.0);
+
+	color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+	color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+	color4 material_specular(1.0, 0.8, 0.0, 1.0);
+	float  material_shininess = 100.0;
+
+	color4 ambient_product = light_ambient * material_ambient;
+	color4 diffuse_product = light_diffuse * material_diffuse;
+	color4 specular_product = light_specular * material_specular;
+
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "AmbientProduct"),
+		1, ambient_product);
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "DiffuseProduct"),
+		1, diffuse_product);
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "SpecularProduct"),
+		1, specular_product);
+
+	glUniform4fv(glGetUniformLocation(gRenderProgram, "LightPosition"),
+		1, light_position);
+
+	glUniform1f(glGetUniformLocation(gRenderProgram, "Shininess"),
+		material_shininess);
 }
 
 void init_particles()
@@ -437,8 +465,6 @@ init(void)
 
 	init_particles();
 	init_objects();
-
-
 
     gModelViewLoc = glGetUniformLocation(gParticleProgram, "ModelView");
 	gProjectionLoc = glGetUniformLocation(gParticleProgram, "Projection");
@@ -671,8 +697,8 @@ mouse(int button, int state, int x, int y)
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 
-	/*glutSwapBuffers();
-	cin.get();*/
+	glutSwapBuffers();
+	cin.get();
 }
 
 
