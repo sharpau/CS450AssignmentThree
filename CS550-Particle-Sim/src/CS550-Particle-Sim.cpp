@@ -233,7 +233,7 @@ init(void)
 	{
 		"position_out", "velocity_out"
 	};
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_SEPARATE_ATTRIBS);
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
 	glLinkProgram(gParticleProgram);
 	int linked;
 	glGetProgramiv(gParticleProgram, GL_LINK_STATUS, &linked);
