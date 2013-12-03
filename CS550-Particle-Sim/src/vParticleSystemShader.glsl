@@ -9,7 +9,7 @@ in vec4 vColor;
 
 out vec4 color;
 out vec4 position_out;
-out vec3 velocity_out;
+out vec4 velocity_out;
 uniform samplerBuffer geometry_tbo;
 uniform float time_step = .02;
 
@@ -91,7 +91,7 @@ void main(void)
 		0.0, 1.0);
 		new_velocity *= vec3(0.2, 0.1, -0.3);
 	}
-	velocity_out = vec3(1., 2., 3.);//new_velocity * 0.9999;
+	velocity_out = vec4(1., 2., 3., 4.);//new_velocity * 0.9999;
 	
 
 	position_out = vec4(4.,5.,6., 8.);//new_position;
