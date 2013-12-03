@@ -69,9 +69,9 @@ int gFrameCount = 0;
 GLint gVelocityLoc;
 struct Particles
 {
-	vector<vec4> positions;
+	// interleaved position and velocity data
+	vector<vec4> pos_vel_data;
 	vector<vec4> colors;
-	vector<vec3> velocities;
 
 	GLuint positions_vbo;
 	GLuint colors_vbo;
@@ -153,24 +153,25 @@ void init_particles()
 	GLfloat hue0 = 90.;
 	for (int idx = 0; idx < gNumParticles; idx++)
 	{
-		GLfloat x = frand(-1, 1.);
-		GLfloat y = frand(-1, 1.);
-		GLfloat z = frand(-1, 1.);
 		GLfloat hsv[3];
 		hsv[0] = hue0 + dHue * idx; // frand(90., 275.);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
 		HSVtoRGB(hsv, rgb);
-		GLfloat vX0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX))+1.;
-		GLfloat vY0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;
-		GLfloat vZ0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;
-		GLfloat nX = 0.;
-		GLfloat nY = 0.;
-		GLfloat nZ = 1.;
-		gParticleSys.positions.push_back(vec4(x, y, z, 1.));
 		gParticleSys.colors.push_back(vec4(rgb[0], rgb[1], rgb[2], 1.));
-		gParticleSys.velocities.push_back(vec3(vX0, vY0, vZ0));
+
+		/*
+		GLfloat x = frand(-1, 1.);
+		GLfloat y = frand(-1, 1.);
+		GLfloat z = frand(-1, 1.);*/
+		/*GLfloat vX0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX))+1.;
+		GLfloat vY0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;
+		GLfloat vZ0 = (.1 * static_cast<GLfloat>(rand()) / static_cast <float> (RAND_MAX)) + 1.;*/
+		// position
+		gParticleSys.pos_vel_data.push_back(vec4(frand(-1, 1.), frand(-1, 1.), frand(-1, 1.), 1.));
+		// velocity
+		gParticleSys.pos_vel_data.push_back(vec4(frand(-.1, .1), frand(-.1, .1), frand(-.1, .1), 0.));
 	}
 }
 
