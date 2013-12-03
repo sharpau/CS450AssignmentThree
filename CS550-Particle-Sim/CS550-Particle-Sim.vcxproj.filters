@@ -73,9 +73,6 @@
     <None Include="src\fshader.glsl">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="src\vshader.glsl">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="src\fPassThrough.glsl">
       <Filter>Source Files</Filter>
     </None>
@@ -83,6 +80,9 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="src\vPassThrough.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="src\vshader.glsl">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

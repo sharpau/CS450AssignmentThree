@@ -213,6 +213,9 @@ setup_obj(int i) {
 
 	glEnableVertexAttribArray(gVertLoc);
 	glVertexAttribPointer(gVertLoc, obj_data[i]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *)0);
+
+
+	gNormLoc = glGetAttribLocation(gRenderProgram, "vNormal");
 	glEnableVertexAttribArray(gNormLoc);
 	glVertexAttribPointer(gNormLoc, obj_data[i]->data_soa.normals_stride, GL_FLOAT, GL_FALSE, 0, (GLvoid *)num_bytes_vert_data);
 }
@@ -327,6 +330,7 @@ void init_objects() {
 
 	gRenderProgram = InitShader("./src/vshader.glsl", "./src/fshader.glsl");
 	mount_shader(gRenderProgram);
+	gSelectFlagLoc = glGetUniformLocation(gRenderProgram, "flag");
 
 	// build the special objects not loaded by user
 	init_grid();
@@ -359,7 +363,6 @@ void init_objects() {
 	glUniform1i(gSelectColorBLoc, gSelectionColorB);
 	glUniform1i(gSelectColorALoc, gSelectionColorA);
 
-	gSelectFlagLoc = glGetUniformLocation(gRenderProgram, "flag");
 	glUniform1i(gSelectFlagLoc, gFlag);
 }
 
@@ -367,8 +370,9 @@ void init_particles()
 {
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 	mount_shader(gParticleProgram);
-	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
-	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
+	gVelocityLoc = glGetAttribLocation(gParticleProgram, "vVelocity");
+	gTriangleCountLoc = glGetUniformLocation(gParticleProgram, "triangle_count");
+
 
 	int count = 0;
 	GLfloat dHue = (275. - 90.) / (GLfloat)gNumParticles;
@@ -418,24 +422,6 @@ void init_particles()
 	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-
-	static const char *varyings[] =
-	{
-		"position_out", "velocity_out"
-	};
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-	int linked;
-	glGetProgramiv(gParticleProgram, GL_LINK_STATUS, &linked);
-	if (linked != GL_TRUE) {
-		int maxLength;
-		glGetProgramiv(gParticleProgram, GL_INFO_LOG_LENGTH, &maxLength);
-		maxLength = maxLength + 1;
-		GLchar *pLinkInfoLog = new GLchar[maxLength];
-		glGetProgramInfoLog(gParticleProgram, maxLength, &maxLength, pLinkInfoLog);
-		cerr << *pLinkInfoLog << endl;
-	}
 }
 
 
@@ -450,7 +436,7 @@ init(void)
 
 
 	init_particles();
-	//init_objects();
+	init_objects();
 
 
 
@@ -467,6 +453,17 @@ init(void)
     glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
     glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 
+	manips[0].model_view = gViewTransform;
+	manips[1].model_view = gViewTransform;
+	manips[2].model_view = gViewTransform;
+	for (auto obj : obj_data) {
+		obj->model_view = gViewTransform;
+	}
+	gModelViewLoc = glGetUniformLocation(gRenderProgram, "ModelView");
+	gProjectionLoc = glGetUniformLocation(gRenderProgram, "Projection");
+	glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
+	glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
+
 
     glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -474,6 +471,22 @@ init(void)
 
 void update_particles(void)
 {
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gParticleProgram);
+	int linked;
+	glGetProgramiv(gParticleProgram, GL_LINK_STATUS, &linked);
+	if (linked != GL_TRUE) {
+		int maxLength;
+		glGetProgramiv(gParticleProgram, GL_INFO_LOG_LENGTH, &maxLength);
+		maxLength = maxLength + 1;
+		GLchar *pLinkInfoLog = new GLchar[maxLength];
+		glGetProgramInfoLog(gParticleProgram, maxLength, &maxLength, pLinkInfoLog);
+		cerr << *pLinkInfoLog << endl;
+	}
 
 	glUniform1i(gTriangleCountLoc, 0);
 
@@ -502,6 +515,8 @@ void update_particles(void)
 
 void myIdle(void)
 {
+	mount_shader(gParticleProgram);
+
 	update_particles();
 	// swap VB and TFB
 	gParticleSys.currVB = gParticleSys.currTFB;
@@ -666,9 +681,9 @@ display( void )
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	mount_shader(gRenderProgram);
-	//draw_objects();
-	mount_shader(gParticleProgram);
-	render_particles();
+	draw_objects();
+	//mount_shader(gParticleProgram);
+	//render_particles();
 
 	glutSwapBuffers();
 }
@@ -1014,7 +1029,7 @@ orthographic view volume.\nor\nCS550-Particle-Sim P FOV NEAR FAR\nwhere FOV is t
 		return -1;
 	}
 
-	obj_data.push_back(new Obj("./Data/unitcube.obj"));
+	obj_data.push_back(new Obj("./Data/bunnyS.obj"));
 	glutInit(&argc, argv);
 #ifdef __APPLE__
     glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_RGBA | GLUT_DEPTH_TEST);
@@ -1043,7 +1058,7 @@ orthographic view volume.\nor\nCS550-Particle-Sim P FOV NEAR FAR\nwhere FOV is t
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
     glutDisplayFunc(display);
-	glutIdleFunc(myIdle);
+	//glutIdleFunc(myIdle);
     glutMainLoop();
 
     return(0);
