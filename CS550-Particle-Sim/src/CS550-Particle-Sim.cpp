@@ -73,12 +73,11 @@ struct Particles
 	vector<vec4> pos_vel_data;
 	vector<vec4> colors;
 
-	GLuint positions_vbo;
 	GLuint colors_vbo;
-	GLuint velocities_vbo;
 	GLuint normals_vbo;
-	
-	GLuint vao[2];
+	GLuint double_buffer_vbo[2];
+
+	GLuint vao;
 	GLuint transformFeedbackObject[2];
 } gParticleSys;
 
@@ -197,30 +196,27 @@ init(void)
 
 	init_particles();
 
-	glGenBuffers(1, &gParticleSys.positions_vbo);
-	glGenBuffers(1, &gParticleSys.colors_vbo);
-	glGenBuffers(1, &gParticleSys.velocities_vbo);
-
-	glGenVertexArrays(2, gParticleSys.vao);
+	glGenVertexArrays(1, &gParticleSys.vao);
+	glBindVertexArray(gParticleSys.vao);
 
 	glGenTransformFeedbacks(2, gParticleSys.transformFeedbackObject);
+	glGenBuffers(1, &gParticleSys.colors_vbo);
+	glGenBuffers(2, gParticleSys.double_buffer_vbo); // these serve as vbos and tfbs
 
-	glBindVertexArray(gParticleSys.vao[0]);
+	for(int i = 0; i < 2; i++) {
+		glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[i]);
+		glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[i]);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[i]);
+		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.pos_vel_data.size()), gParticleSys.pos_vel_data.data(), GL_DYNAMIC_DRAW);
+	}
 
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.positions.size()), gParticleSys.positions.data(), GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(gVertLoc);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[1]);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.velocities_vbo);
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 3 * gParticleSys.velocities.size()), gParticleSys.velocities.data(), GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
+	
 	glEnableVertexAttribArray(gVelocityLoc);
-	glVertexAttribPointer(gVelocityLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+	glVertexAttribPointer(gVelocityLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(4 * sizeof(GLfloat)));
+
+
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
 	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
