@@ -187,11 +187,10 @@ init(void)
 
 	// Load shaders and use the resulting shader program
 	// doing this ahead of time so we can use it for setup of special objects
-	gPassThroughProgram = InitShader("./src/vPassThrough.glsl", "./src/fPassThrough.glsl");
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 
 
-	mount_shader(gPassThroughProgram);
+	mount_shader(gParticleProgram);
 	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
 	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
 
@@ -215,27 +214,6 @@ init(void)
 	glEnableVertexAttribArray(gVertLoc);
 	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.velocities_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 3 * gParticleSys.velocities.size()), gParticleSys.velocities.data(), GL_DYNAMIC_COPY);
-	glEnableVertexAttribArray(gVelocityLoc);
-	glVertexAttribPointer(gVelocityLoc, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(gColorLoc);
-	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-
-
-	mount_shader(gParticleProgram);
-
-	glBindVertexArray(gParticleSys.vao[1]);
-
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.positions_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.positions.size()), gParticleSys.positions.data(), GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(gVertLoc);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
 	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[0]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
 
@@ -247,41 +225,44 @@ init(void)
 	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[1]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
 
+	int stride = 3;
+	GLfloat *data;
+	data = (GLfloat *)glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY);
+	for (int i = 0; i < gParticleSys.positions.size(); i++)
+	{
+		int idx = stride * i;
+		if (stride == 3)
+			printf("%i: %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2]);
+		else
+			printf("%i: %f, %f, %f, %f\n", i, data[idx], data[idx + 1], data[idx + 2], data[idx + 3]);
+	}
+	glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
 	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 	glEnableVertexAttribArray(gColorLoc);
 	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
-
-	mount_shader(gPassThroughProgram);
-	int linked;
-	glGetProgramiv(gPassThroughProgram, GL_LINK_STATUS, &linked);
-	if(linked != GL_TRUE) {
-		int maxLength;
-		glGetProgramiv(gPassThroughProgram, GL_INFO_LOG_LENGTH, &maxLength);
-		maxLength = maxLength + 1;
-		GLchar *pLinkInfoLog = new GLchar[maxLength];
-		glGetProgramInfoLog(gPassThroughProgram, maxLength, &maxLength, pLinkInfoLog);
-		cerr << *pLinkInfoLog << endl;
-	}
-
-	
-	//Set up selection colors and a gFlag -- copied from example
-	gSelectColorRLoc = glGetUniformLocation(gPassThroughProgram,"selectionColorR");
-	gSelectColorGLoc = glGetUniformLocation(gPassThroughProgram,"selectionColorG");
-	gSelectColorBLoc = glGetUniformLocation(gPassThroughProgram,"selectionColorB");
-	gSelectColorALoc = glGetUniformLocation(gPassThroughProgram,"selectionColorA");
-	glUniform1i(gSelectColorRLoc, gSelectionColorR);
-	glUniform1i(gSelectColorGLoc, gSelectionColorG);
-	glUniform1i(gSelectColorBLoc, gSelectionColorB);
-	glUniform1i(gSelectColorALoc, gSelectionColorA);
-
-	gSelectFlagLoc = glGetUniformLocation(gPassThroughProgram, "flag");
-	glUniform1i(gSelectFlagLoc, gFlag);
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_SEPARATE_ATTRIBS);
+	glLinkProgram(gParticleProgram);
 
 
-    gModelViewLoc = glGetUniformLocation(gPassThroughProgram, "ModelView");
-    gProjectionLoc = glGetUniformLocation(gPassThroughProgram, "Projection");
+	//int linked;
+	//glGetProgramiv(gPassThroughProgram, GL_LINK_STATUS, &linked);
+	//if(linked != GL_TRUE) {
+	//	int maxLength;
+	//	glGetProgramiv(gPassThroughProgram, GL_INFO_LOG_LENGTH, &maxLength);
+	//	maxLength = maxLength + 1;
+	//	GLchar *pLinkInfoLog = new GLchar[maxLength];
+	//	glGetProgramInfoLog(gPassThroughProgram, maxLength, &maxLength, pLinkInfoLog);
+	//	cerr << *pLinkInfoLog << endl;
+
+
+    gModelViewLoc = glGetUniformLocation(gParticleProgram, "ModelView");
+	gProjectionLoc = glGetUniformLocation(gParticleProgram, "Projection");
 
     point4  eye(0., 0., 2.5, 1.);
     point4  at(0., 0., 0., 1.);
@@ -296,30 +277,17 @@ init(void)
 
     glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
-	//glutTimerFunc(2000, animate, 0);
 }
 
 void update_particles(void)
 {
 	// do the stuff where the particles move yo!
-	glUseProgram(gParticleProgram);
-	gVelocityLoc = glGetAttribLocation(gParticleProgram, "velocity");
-	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
-	
 	glUniform1i(gTriangleCountLoc, 0);
 
 	GLfloat * data;
 
-	static const char *varyings[] =
-	{
-		"position_out",
-	};
-	glTransformFeedbackVaryings(gParticleProgram, 1, varyings, GL_SEPARATE_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-
 	int thing = 0;
 	thing = 4;
-	glBindVertexArray(gParticleSys.vao[0]);
 	printf("positions\n");
 	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[0]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.positions_vbo);
@@ -339,17 +307,12 @@ void update_particles(void)
 	}
 	glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
 
-	thing = 3;
-	static const char *varyings1[] =
-	{
-		"velocity_out",
-	};
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[1]);
-	glTransformFeedbackVaryings(gParticleProgram, 1, varyings1, GL_SEPARATE_ATTRIBS);
-	glLinkProgram(gParticleProgram);
 
-	glBindVertexArray(gParticleSys.vao[1]);
+
+	thing = 3;
+
 	printf("velocities\n");
+	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformBuffer[1]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.velocities_vbo);
 
 	glBeginTransformFeedback(GL_POINTS);
@@ -377,7 +340,6 @@ void myIdle(void)
 void render_particles(void)
 {
 	glPointSize(10.);
-	glUseProgram(gPassThroughProgram);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.positions.size());
 }
 
