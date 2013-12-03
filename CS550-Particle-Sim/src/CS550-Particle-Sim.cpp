@@ -526,6 +526,9 @@ void myIdle(void)
 
 void render_particles(void)
 {
+	glBindVertexArray(gParticleSys.vao);
+	glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
+	glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 	glPointSize(10.);
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[gParticleSys.currTFB]);
 	glDrawArrays(GL_POINTS, 0, gParticleSys.pos_vel_data.size() / 2);
@@ -682,8 +685,8 @@ display( void )
 
 	mount_shader(gRenderProgram);
 	draw_objects();
-	//mount_shader(gParticleProgram);
-	//render_particles();
+	mount_shader(gParticleProgram);
+	render_particles();
 
 	glutSwapBuffers();
 }
