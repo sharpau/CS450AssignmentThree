@@ -54,11 +54,10 @@ GLint gVertLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 100;
+GLuint gNumParticles = 5;
 
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
 GLint const POSITIONS_VELOCITIES_BUFF_IDX = 1;
-GLuint gtransformFeedbackObjects[3]; // 0 = world triangle locations, 1 = positions & velocities
 
 // Shader programs
 GLuint gParticleProgram, gPassThroughProgram, gRenderProgram;
@@ -79,7 +78,7 @@ struct Particles
 	GLuint currVB;
 	GLuint currTFB;
 
-	GLuint vao[2];
+	GLuint vao;
 	GLuint transformFeedbackObject[2];
 } gParticleSys;
 
@@ -234,11 +233,12 @@ init(void)
 
 	init_particles();
 
-	glGenVertexArrays(2, gParticleSys.vao);
+	glGenVertexArrays(1, &gParticleSys.vao);
 
 	glGenTransformFeedbacks(2, gParticleSys.transformFeedbackObject);
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(2, gParticleSys.double_buffer_vbo); // these serve as vbos and tfbs
+
 	auto generateDoubleBuffers = [](GLint idx )
 	{
 		glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[idx]);
@@ -258,25 +258,11 @@ init(void)
 
 	};
 
-	glBindVertexArray(gParticleSys.vao[0]);
-	generateDoubleBuffers(0);
+	glBindVertexArray(gParticleSys.vao);
 
+	generateDoubleBuffers(0);
 	generateDoubleBuffers(1);
-	/*glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[1]);
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.pos_vel_data.size()), gParticleSys.pos_vel_data.data(), GL_DYNAMIC_DRAW);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
-	glVertexAttribPointer(gVelocityLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(4 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(gVelocityLoc);
-	glVertexAttribPointer(gVelocityLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
-	glEnableVertexAttribArray(gVertLoc);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(4 * sizeof(GLfloat)));
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.colors_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(gColorLoc);
-	glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-	*/
+
 	gParticleSys.currVB = 0;
 	gParticleSys.currTFB = 1;
 
@@ -325,7 +311,7 @@ init(void)
 	linkStatus = isLinked(gPassThroughProgram);*/
 
 
-	glBindVertexArray(gParticleSys.vao[0]);
+	glBindVertexArray(gParticleSys.vao);
 	mount_shader(gParticleProgram);
 
     glEnable(GL_DEPTH_TEST);
@@ -355,27 +341,22 @@ void update_particles(void)
 	{
 		"position_out", "velocity_out"
 	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gParticleProgram);
 
 	glUseProgram(gParticleProgram);
 	glUniform1i(gTriangleCountLoc, 0);
 
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[0]);
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-
 	glBeginTransformFeedback(GL_POINTS);
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	glEndTransformFeedback();
-
-
 
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-
 	glBeginTransformFeedback(GL_POINTS);
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	glEndTransformFeedback();
+	
 	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
 
 	printf("\n");
@@ -392,10 +373,9 @@ void myIdle(void)
 void render_particles(void)
 {
 	glUseProgram(gParticleProgram);
+
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
 	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
-	glVertexAttribPointer(gVelocityLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(sizeof(vec4)));
 
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 }
@@ -414,12 +394,11 @@ void render_geometry(void)
 
 	//print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Triangle Data", 4);
 }
+
 void
 draw(bool selection = false) {
-	//update_particles();
-	render_geometry();
+	//render_geometry();
 	render_particles();
-
 }
 
 //----------------------------------------------------------------------------
