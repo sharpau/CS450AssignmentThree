@@ -33,7 +33,7 @@ vector<Obj*> obj_data;
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
-#define DEBUG true
+#define DEBUG false
 // global variables
 GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
 GLuint  gProjectionLoc; // projection matrix uniform shader variable location
@@ -54,7 +54,8 @@ GLint gVertLoc, gNormLoc, gColorLoc, gTriangleCountLoc;
 mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
-GLuint gNumParticles = 5;
+// breaks if 10000000 or above 
+GLuint gNumParticles = 1000000;
 
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
 GLint const POSITIONS_VELOCITIES_BUFF_IDX = 1;
@@ -174,12 +175,11 @@ void HSVtoRGB(float hsv[3], float rgb[3]) {
 void init_particles()
 {
 	int count = 0;
-	GLfloat dHue = (275. - 90.) / (GLfloat)gNumParticles;
 	GLfloat hue0 = 90.;
 	for (int idx = 0; idx < gNumParticles; idx++)
 	{
 		GLfloat hsv[3];
-		hsv[0] = hue0 + dHue * idx; // frand(90., 275.);
+		hsv[0] = frand(90., 275.);
 		hsv[1] = 1.;
 		hsv[2] = 1.;
 		GLfloat rgb[3] = { 0., 0., 0. };
@@ -220,14 +220,7 @@ init(void)
 
 	bool linkStatus = false;
 
-	//static const char *varyings[] =
-	//{
-	//	"position_out", "velocity_out"
-	//};
 
-
-	//glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	//glLinkProgram(gParticleProgram);
     gCameraRotX = Angel::identity();
 	gCameraRotY = Angel::identity();
 	gCameraRotZ = Angel::identity();
@@ -293,32 +286,6 @@ init(void)
     glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
     glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 
-/*
-
-	mount_shader(gPassThroughProgram);
-	glGenVertexArrays(1, &gRenderVao);
-	glGenTransformFeedbacks(1, &gRenderTFBObject);
-	glGenBuffers(1, &gRenderVbo);
-
-	glBindVertexArray(gRenderVao);
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gRenderTFBObject);
-	glBindBuffer(GL_ARRAY_BUFFER, gRenderVbo);
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gRenderVbo);
-	GLuint theSize = (sizeof(GLfloat)* 4 * obj_data[0]->data_soa.positions.size());
-	GLvoid *theData = gParticleSys.colors.data();
-	glBufferData(GL_ARRAY_BUFFER, theSize, theData, GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(gVertLoc);
-	glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-	static const char *varyings2[] =
-	{
-		"world_space_position"
-	};
-	glTransformFeedbackVaryings(gPassThroughProgram, 1, varyings2, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gPassThroughProgram);
-	linkStatus = isLinked(gPassThroughProgram);*/
-
-
     glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 }
@@ -350,9 +317,10 @@ void update_particles(void)
 
 	glUniform1i(gTriangleCountLoc, 0);
 	
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[1]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
 	glBeginTransformFeedback(GL_POINTS);
-	glDrawArrays(GL_POINTS, 0, gNumParticles);
+	glDrawArrays(GL_POINTS, 0, min(gNumParticles, gFrameCount >> 3));
 	glEndTransformFeedback();
 	checkErrors();
 	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
@@ -360,7 +328,7 @@ void update_particles(void)
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[0]);
 	glBeginTransformFeedback(GL_POINTS);
-	glDrawArrays(GL_POINTS, 0, gNumParticles);
+	glDrawArrays(GL_POINTS, 0, min(gNumParticles, gFrameCount >> 3));
 	glEndTransformFeedback();
 	checkErrors();
 	
@@ -377,7 +345,7 @@ void render_particles(void)
 {
 	glUseProgram(gParticleProgram);
 
-	glDrawArrays(GL_POINTS, 0, gNumParticles);
+	glDrawArrays(GL_POINTS, 0, min(gNumParticles, gFrameCount >> 3));
 	checkErrors();
 	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4);
 

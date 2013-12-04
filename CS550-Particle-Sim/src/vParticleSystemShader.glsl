@@ -11,7 +11,7 @@ out vec4 color;
 out vec4 position_out;
 out vec4 velocity_out;
 uniform samplerBuffer geometry_tbo;
-uniform float time_step = .02;
+uniform float time_step = .002;
 
 float XMIN = -1.;
 float XMAX = 1.;
@@ -65,7 +65,7 @@ vec3 reflect_vector(vec3 v, vec3 n)
 
 void main(void)
 {
-	vec4 acceleration = vec4(0.0, -0.3, 0.0, 0.0);
+	vec4 acceleration = vec4(.01, -0.3, 0.0, 0.0);
 	vec4 new_velocity = vVelocity + (acceleration * time_step);
 	vec4 new_position = vec4((vPosition + new_velocity * time_step).xyz, 1.);
 	vec4 v0, v1, v2;
@@ -86,10 +86,10 @@ void main(void)
 	//}
 
 	color = vColor;
-	if (new_position.y < -10.0)
+	if (new_position.y < -80.0)
 	{
-		new_position = vec4(-new_position.x * .3, vPosition.y + 10., 0.0, 1.0);
-		new_velocity *= vec4(0.2, 0.1, -0.3, 0.);
+		new_position = vec4(-new_position.x * .93, vPosition.y + 95., vPosition.z * .9, 1.0);
+		new_velocity *= vec4(0.2, 0.1, -0.3, -0.4);
 		//new_velocity = vec4(2., 4., 6., 8.);
 	}
 	velocity_out = vec4((new_velocity * 0.9999).xyz, 0.);
