@@ -65,36 +65,35 @@ vec3 reflect_vector(vec3 v, vec3 n)
 
 void main(void)
 {
-	vec3 acceleration = vec3(0.0, -0.3, 0.0);
-	vec3 new_velocity = vVelocity.xyz + acceleration * time_step;
-	vec4 new_position = vPosition + vec4(new_velocity * time_step, 0.0);
-	vec3 v0, v1, v2;
-	vec3 point;
+	vec4 acceleration = vec4(0.0, -0.3, 0.0, 0.0);
+	vec4 new_velocity = vVelocity + (acceleration * time_step);
+	vec4 new_position = vec4((vPosition + new_velocity * time_step).xyz, 1.);
+	vec4 v0, v1, v2;
+	vec4 point;
 	int i;
-	for (i = 0; i < triangle_count; i++)
-	{
-		v0 = texelFetch(geometry_tbo, i * 3).xyz;
-		v1 = texelFetch(geometry_tbo, i * 3 + 1).xyz;
-		v2 = texelFetch(geometry_tbo, i * 3 + 2).xyz;
-	
-		if (intersect(vPosition.xyz, vPosition.xyz - new_position.xyz, v0, v1, v2, point))
-		{
-			vec3 n = normalize(cross(v1 - v0, v2 - v0));
-			new_position = vec4(point + reflect_vector(new_position.xyz - point, n), 1.0);
-			new_velocity = 0.8 * reflect_vector(new_velocity, n);
-		}
-	}
+		//for (i = 0; i < triangle_count; i++)
+	//{
+	//	v0 = vec4(texelFetch(geometry_tbo, i * 3).xyz, 0.);
+	//	v1 = vec4(texelFetch(geometry_tbo, i * 3 + 1).xyz, 0.);
+	//	v2 = vec4(texelFetch(geometry_tbo, i * 3 + 2).xyz, 0.);
 
-	if (new_position.y < -40.0)
-	{
-		new_position = vec4(-new_position.x * 0.3, vPosition.y + 80.0,
-		0.0, 1.0);
-		new_velocity *= vec3(0.2, 0.1, -0.3);
-	}
-	velocity_out = vec4(new_velocity * 0.9999, 0.);
-	
+	//	if (intersect(vPosition.xyz, vPosition.xyz - new_position.xyz, v0.xyz, v1.xyz, v2.xyz, point.xyz))
+	//	{
+	//		vec3 n = normalize(cross((v1 - v0).xyz, (v2 - v0).xyz));
+	//		new_position = vec4(point.xyz + reflect_vector(new_position.xyz - point.xyz, n), 1.0);
+	//		new_velocity = vec4(0.8 * reflect_vector(new_velocity.xyz, n), 0.);
+	//	}
+	//}
 
-	position_out = new_position;
-	gl_Position = Projection * (ModelView * vPosition);
 	color = vColor;
+	if (new_position.y < -10.0)
+	{
+		new_position = vec4(-new_position.x * .3, vPosition.y + 2.0, 0.0, 1.0);
+		new_velocity *= vec4(0.2, 0.1, -0.3, 0.);
+		//new_velocity = vec4(2., 4., 6., 8.);
+	}
+	velocity_out = vec4((new_velocity * 0.9999).xyz, 0.);
+	position_out = new_position;
+
+	gl_Position = Projection * (ModelView * vPosition);
 } // Note the mystical semicolon the red book includes... Don't really know why
