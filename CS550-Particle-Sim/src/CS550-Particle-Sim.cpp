@@ -235,14 +235,11 @@ init(void)
 
 	glGenVertexArrays(1, &gParticleSys.vao);
 
-	glGenTransformFeedbacks(2, gParticleSys.transformFeedbackObject);
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(2, gParticleSys.double_buffer_vbo); // these serve as vbos and tfbs
 
 	auto generateDoubleBuffers = [](GLint idx )
 	{
-		glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gParticleSys.transformFeedbackObject[idx]);
-		
 		glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[idx]);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[idx]);
 		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.pos_vel_data.size()), gParticleSys.pos_vel_data.data(), GL_DYNAMIC_DRAW);
@@ -311,9 +308,6 @@ init(void)
 	linkStatus = isLinked(gPassThroughProgram);*/
 
 
-	glBindVertexArray(gParticleSys.vao);
-	mount_shader(gParticleProgram);
-
     glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 }
@@ -366,7 +360,6 @@ void update_particles(void)
 void myIdle(void)
 {
 	update_particles();
-	// swap VB and TFB
 	glutPostRedisplay();
 }
 
@@ -413,10 +406,6 @@ display( void )
 
 	draw();
 
-	// SUPER TODO
-	// 2nd pass
-	// bind points vao
-	// bind points feedback buffer
 	glutSwapBuffers();
 }
 

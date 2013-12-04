@@ -88,7 +88,7 @@ void main(void)
 	color = vColor;
 	if (new_position.y < -10.0)
 	{
-		new_position = vec4(-new_position.x * .3, vPosition.y + 2.0, 0.0, 1.0);
+		new_position = vec4(-new_position.x * .3, vPosition.y + 10., 0.0, 1.0);
 		new_velocity *= vec4(0.2, 0.1, -0.3, 0.);
 		//new_velocity = vec4(2., 4., 6., 8.);
 	}
