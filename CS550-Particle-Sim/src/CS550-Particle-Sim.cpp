@@ -213,6 +213,11 @@ GLuint gRenderVao;
 void
 init(void)
 {
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+
 	bool linkStatus = false;
 
 	//static const char *varyings[] =
@@ -261,6 +266,9 @@ init(void)
 		glEnableVertexAttribArray(gColorLoc);
 		glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 	};
+
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gParticleProgram);
 
 	glBindVertexArray(gParticleSys.vao);
 
@@ -340,13 +348,6 @@ void update_particles(void)
 
 	glUseProgram(gParticleProgram);
 
-	static const char *varyings[] =
-	{
-		"position_out", "velocity_out"
-	};
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
-
 	glUniform1i(gTriangleCountLoc, 0);
 	
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
@@ -354,15 +355,15 @@ void update_particles(void)
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	glEndTransformFeedback();
 	checkErrors();
+	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
 
+	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[0]);
 	glBeginTransformFeedback(GL_POINTS);
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	glEndTransformFeedback();
 	checkErrors();
 	
-	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
-
 	gFrameCount++;
 }
 
@@ -376,7 +377,6 @@ void render_particles(void)
 {
 	glUseProgram(gParticleProgram);
 
-	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	checkErrors();
 	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4);
