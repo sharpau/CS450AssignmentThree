@@ -33,7 +33,7 @@ vector<Obj*> obj_data;
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
 
-
+#define DEBUG true
 // global variables
 GLuint  gModelViewLoc;  // model-view matrix uniform shader variable location
 GLuint  gProjectionLoc; // projection matrix uniform shader variable location
@@ -82,6 +82,15 @@ struct Particles
 	GLuint transformFeedbackObject[2];
 } gParticleSys;
 
+
+void checkErrors()
+{
+	if (!DEBUG) return;
+
+	GLenum e = glGetError();
+	printf("FRAME[%i]-", gFrameCount);
+	printf("ERROR_RENDERING: %s\n", glewGetErrorString(e));
+}
 
 bool isLinked(GLuint program)
 {
@@ -241,7 +250,6 @@ init(void)
 	auto generateDoubleBuffers = [](GLint idx )
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[idx]);
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[idx]);
 		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.pos_vel_data.size()), gParticleSys.pos_vel_data.data(), GL_DYNAMIC_DRAW);
 		glEnableVertexAttribArray(gVertLoc);
 		glVertexAttribPointer(gVertLoc, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(vec4), BUFFER_OFFSET(0));
@@ -252,7 +260,6 @@ init(void)
 		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 		glEnableVertexAttribArray(gColorLoc);
 		glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
 	};
 
 	glBindVertexArray(gParticleSys.vao);
@@ -278,10 +285,6 @@ init(void)
     glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
     glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 
-
-	/*glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);*/
-	linkStatus = isLinked(gParticleProgram);
 /*
 
 	mount_shader(gPassThroughProgram);
@@ -314,6 +317,7 @@ init(void)
 
 void print_mappable_buffer(GLenum target, string friendly_name, GLuint stride)
 {
+	if (!DEBUG) return;
 	bool t = glIsTransformFeedback(gParticleSys.transformFeedbackObject[0]);
 	GLfloat *data = (GLfloat *)glMapBuffer(target, GL_READ_ONLY);
 	printf("%s:\n", friendly_name.data());
@@ -327,10 +331,15 @@ void print_mappable_buffer(GLenum target, string friendly_name, GLuint stride)
 		}
 		printf("\n");
 	}
+	printf("\n");
 	glUnmapBuffer(target);
 }
+
 void update_particles(void)
 {
+
+	glUseProgram(gParticleProgram);
+
 	static const char *varyings[] =
 	{
 		"position_out", "velocity_out"
@@ -338,22 +347,22 @@ void update_particles(void)
 	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
 	glLinkProgram(gParticleProgram);
 
-	glUseProgram(gParticleProgram);
 	glUniform1i(gTriangleCountLoc, 0);
+	
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
+	glBeginTransformFeedback(GL_POINTS);
+	glDrawArrays(GL_POINTS, 0, gNumParticles);
+	glEndTransformFeedback();
+	checkErrors();
 
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[0]);
 	glBeginTransformFeedback(GL_POINTS);
 	glDrawArrays(GL_POINTS, 0, gNumParticles);
 	glEndTransformFeedback();
-
-	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[1]);
-	glBeginTransformFeedback(GL_POINTS);
-	glDrawArrays(GL_POINTS, 0, gNumParticles);
-	glEndTransformFeedback();
+	checkErrors();
 	
 	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
 
-	printf("\n");
 	gFrameCount++;
 }
 
@@ -368,9 +377,10 @@ void render_particles(void)
 	glUseProgram(gParticleProgram);
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
+	glDrawArrays(GL_POINTS, 0, gNumParticles);
+	checkErrors();
 	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4);
 
-	glDrawArrays(GL_POINTS, 0, gNumParticles);
 }
 
 void render_geometry(void)
@@ -405,7 +415,6 @@ display( void )
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	draw();
-
 	glutSwapBuffers();
 }
 
