@@ -55,7 +55,7 @@ mat4 gCameraTranslate, gCameraRotX, gCameraRotY, gCameraRotZ;
 
 // particles stuff
 // breaks if 10000000 or above 
-GLuint gNumParticles = 1000000;
+GLuint gNumParticles = 1000;
 
 GLint const WORLD_TRIANGLE_BUFF_IDX = 0;
 GLint const POSITIONS_VELOCITIES_BUFF_IDX = 1;
@@ -197,26 +197,26 @@ void init_particles()
 		vec4 position(x, y, z, 1.);
 		gParticleSys.pos_vel_data.push_back(position);
 		// velocity
-		GLfloat vX = frand(particle_min_velocity, particle_max_velocity);
-		GLfloat vY = frand(particle_min_velocity, particle_max_velocity);
-		GLfloat vZ = frand(particle_min_velocity, particle_max_velocity);
+		GLfloat vX = frand(1., 10.);// frand(particle_min_velocity, particle_max_velocity);
+		GLfloat vY = frand(1., 5.);// frand(particle_min_velocity, particle_max_velocity);
+		GLfloat vZ = 0.;// frand(particle_min_velocity, particle_max_velocity);
 		vec4 velocity(vX, vY, vZ, 0.);
 		gParticleSys.pos_vel_data.push_back(velocity);
 	}
 }
 
-GLuint gRenderTFBObject, gRenderVbo;
+GLuint gRenderTFBObject;
+GLuint gRenderVbo[2];
 
 GLuint gRenderVao;
+GLuint gGeometrySampler;
 
+GLuint gTrianglesTexture;
+GLint gGeometryTBOLoc;
 // OpenGL initialization
 void
 init(void)
 {
-	static const char *varyings[] =
-	{
-		"position_out", "velocity_out"
-	};
 
 	bool linkStatus = false;
 
@@ -237,7 +237,6 @@ init(void)
 
 	gVelocityLoc = glGetAttribLocation(gParticleProgram, "vVelocity");
 	gTriangleCountLoc = glGetAttribLocation(gParticleProgram, "triangle_count");
-
 	init_particles();
 
 	glGenVertexArrays(1, &gParticleSys.vao);
@@ -245,6 +244,8 @@ init(void)
 	glGenBuffers(1, &gParticleSys.colors_vbo);
 	glGenBuffers(2, gParticleSys.double_buffer_vbo); // these serve as vbos and tfbs
 
+	glGenTextures(1, &gTrianglesTexture);
+	glGenBuffers(1, &gGeometrySampler);
 	auto generateDoubleBuffers = [](GLint idx )
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[idx]);
@@ -258,45 +259,51 @@ init(void)
 		glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* 4 * gParticleSys.colors.size()), gParticleSys.colors.data(), GL_STATIC_DRAW);
 		glEnableVertexAttribArray(gColorLoc);
 		glVertexAttribPointer(gColorLoc, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
 	};
 
-	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
-	glLinkProgram(gParticleProgram);
 
 	glBindVertexArray(gParticleSys.vao);
 
 	generateDoubleBuffers(0);
 	generateDoubleBuffers(1);
 
-	gParticleSys.currVB = 0;
-	gParticleSys.currTFB = 1;
+	mount_shader(gPassThroughProgram);
+	glGenVertexArrays(1, &gRenderVao);
+	glGenBuffers(2, gRenderVbo);
 
+	glBindTexture(GL_TEXTURE0, gTrianglesTexture);
+	glBindBuffer(GL_ARRAY_BUFFER, gRenderVbo[0]);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* obj_data[0]->data_soa.positions_stride * obj_data[0]->data_soa.positions.size()), obj_data[0]->data_soa.positions.data(), GL_DYNAMIC_DRAW);
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, obj_data[0]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
+	glBindBuffer(GL_ARRAY_BUFFER, gRenderVbo[1]);
+	glBufferData(GL_ARRAY_BUFFER, (sizeof(GLfloat)* obj_data[0]->data_soa.positions_stride * obj_data[0]->data_soa.positions.size()), obj_data[0]->data_soa.positions.data(), GL_DYNAMIC_DRAW);
+	glEnableVertexAttribArray(gVertLoc);
+	glVertexAttribPointer(gVertLoc, obj_data[0]->data_soa.positions_stride, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
-    gModelViewLoc = glGetUniformLocation(gParticleProgram, "ModelView");
-	gProjectionLoc = glGetUniformLocation(gParticleProgram, "Projection");
+	glBindTexture(GL_TEXTURE0, gTrianglesTexture);
+	glTexBuffer(GL_TEXTURE_1D, GL_RGBA4, gTrianglesTexture);
 
-    point4  eye(2.5, 2.5, 2.5, 1.);
+    point4  eye(0., 0., 2.5, 1.);
     point4  at(0., 0., 0., 1.);
     vec4    up(0., 1., 0., 0.);
 	gCameraTranslate = Translate(-eye);
     gViewTransform = LookAt(eye, at, up);
 	gModelView = gViewTransform * Angel::identity();
 
-    glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
-    glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
-
     glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 }
 
-void print_mappable_buffer(GLenum target, string friendly_name, GLuint stride)
+void print_mappable_buffer(GLenum target, string friendly_name, GLint stride, GLint size)
 {
 	if (!DEBUG) return;
 	bool t = glIsTransformFeedback(gParticleSys.transformFeedbackObject[0]);
 	GLfloat *data = (GLfloat *)glMapBuffer(target, GL_READ_ONLY);
 	printf("%s:\n", friendly_name.data());
-	for (int i = 0; i < gParticleSys.pos_vel_data.size(); i++)
+	for (int i = 0; i < size; i++)
 	{
 		printf("%i: ", i);
 		int idx = stride * i;
@@ -313,7 +320,18 @@ void print_mappable_buffer(GLenum target, string friendly_name, GLuint stride)
 void update_particles(void)
 {
 
-	glUseProgram(gParticleProgram);
+	mount_shader(gParticleProgram);
+
+	static const char *varyings[] =
+	{
+		"position_out", "velocity_out"
+	};
+	glTransformFeedbackVaryings(gParticleProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gParticleProgram);
+
+	glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
+
+	glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
 
 	glUniform1i(gTriangleCountLoc, 0);
 	
@@ -323,7 +341,7 @@ void update_particles(void)
 	glDrawArrays(GL_POINTS, 0, min(gNumParticles, gFrameCount >> 3));
 	glEndTransformFeedback();
 	checkErrors();
-	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4);
+	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Updated Position Velocity", 4, gParticleSys.pos_vel_data.size());
 
 	glBindBuffer(GL_ARRAY_BUFFER, gParticleSys.double_buffer_vbo[0]);
 	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gParticleSys.double_buffer_vbo[0]);
@@ -345,25 +363,34 @@ void render_particles(void)
 {
 	glUseProgram(gParticleProgram);
 
+	glBindVertexArray(gParticleSys.vao);
 	glDrawArrays(GL_POINTS, 0, min(gNumParticles, gFrameCount >> 3));
 	checkErrors();
-	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4);
+	print_mappable_buffer(GL_ARRAY_BUFFER, "Rendered Positions Velocities", 4, gParticleSys.pos_vel_data.size());
 
 }
 
 void render_geometry(void)
 {
-	glUseProgram(gPassThroughProgram);
-	glBindBuffer(GL_ARRAY_BUFFER, gRenderVbo);
-	glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, gRenderTFBObject);
+	mount_shader(gPassThroughProgram);
 
+	static const char *varyings[] =
+	{
+		"world_space_position"
+	};
+	glTransformFeedbackVaryings(gPassThroughProgram, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+	glLinkProgram(gPassThroughProgram);
+
+	glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
+	glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
+
+	glBindVertexArray(gRenderVao);
+	glBindBuffer(GL_ARRAY_BUFFER, gRenderVbo[0]);
+	glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, gRenderVbo[0]);
 	glBeginTransformFeedback(GL_TRIANGLES);
-
-	glDrawArrays(GL_TRIANGLES, 0, obj_data[0]->data_soa.positions.size());
-
+	glDrawArrays(GL_POINTS, 0, obj_data[0]->data_soa.positions.size() / 3);
 	glEndTransformFeedback();
-
-	//print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Triangle Data", 4);
+	print_mappable_buffer(GL_TRANSFORM_FEEDBACK_BUFFER, "Triangles", obj_data[0]->data_soa.positions_stride, obj_data[0]->data_soa.positions.size());
 }
 
 void

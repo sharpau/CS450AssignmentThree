@@ -1,7 +1,6 @@
 #version 150 core
 
 in  vec4 vPosition;
-in	vec4 vColor;
 
 out vec4 color;
 
@@ -18,6 +17,6 @@ void main()
 	world_space_position = pos;
 
     gl_Position = Projection * pos;
-	color = vColor;
+	color = vec4(.0);
     
 }
