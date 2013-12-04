@@ -192,8 +192,7 @@ setup_obj(int i) {
 	glGenVertexArrays(1, &obj_data[i]->vao);
 	glBindVertexArray(obj_data[i]->vao);
 
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
+	glGenBuffers(1, &obj_data[i]->vbo);
 
 	// set up colors for selection
 	obj_data[i]->selectionR = i;
@@ -201,7 +200,7 @@ setup_obj(int i) {
 	obj_data[i]->selectionB = i;
 	obj_data[i]->selectionA = 255; // only seems to work at 255
 	obj_data[i]->model_view = gViewTransform;
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, obj_data[i]->vbo);
 	GLsizei num_bytes_vert_data = sizeof(GLfloat)* obj_data[i]->data_soa.positions.size();
 	GLsizei num_bytes_norm_data = sizeof(GLfloat)* obj_data[i]->data_soa.normals.size();
 	GLvoid *vert_data = obj_data[i]->data_soa.positions.data();
@@ -326,7 +325,8 @@ init_manips(void) {
 
 }
 
-void init_objects() {
+void
+init_objects() {
 
 	gRenderProgram = InitShader("./src/vshader.glsl", "./src/fshader.glsl");
 	mount_shader(gRenderProgram);
@@ -394,7 +394,8 @@ void init_objects() {
 		material_shininess);
 }
 
-void init_particles()
+void
+init_particles()
 {
 	gParticleProgram = InitShader("./src/vParticleSystemShader.glsl", "./src/fPassThrough.glsl");
 	mount_shader(gParticleProgram);
@@ -552,6 +553,7 @@ void myIdle(void)
 
 void render_particles(void)
 {
+	mount_shader(gParticleProgram);
 	glBindVertexArray(gParticleSys.vao);
 	glUniformMatrix4fv(gModelViewLoc, 1, GL_TRUE, gViewTransform);
 	glUniformMatrix4fv(gProjectionLoc, 1, GL_TRUE, gProjection);
@@ -562,6 +564,7 @@ void render_particles(void)
 
 void
 draw_objects(bool selection = false) {
+	mount_shader(gRenderProgram);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	if (!selection) {
@@ -697,8 +700,8 @@ mouse(int button, int state, int x, int y)
 	// Swap buffers makes the back buffer actually show...in this case, we don't want it to show so we comment out.
 	// For debugging, you can uncomment it to see the render of the back buffer which will hold your 'fake color render'
 
-	glutSwapBuffers();
-	cin.get();
+	//glutSwapBuffers();
+	//cin.get();
 }
 
 
@@ -709,9 +712,7 @@ display( void )
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	mount_shader(gRenderProgram);
 	draw_objects();
-	mount_shader(gParticleProgram);
 	render_particles();
 
 	glutSwapBuffers();
@@ -1087,7 +1088,7 @@ orthographic view volume.\nor\nCS550-Particle-Sim P FOV NEAR FAR\nwhere FOV is t
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
     glutDisplayFunc(display);
-	//glutIdleFunc(myIdle);
+	glutIdleFunc(myIdle);
     glutMainLoop();
 
     return(0);

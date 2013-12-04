@@ -32,6 +32,8 @@ public:
 	struct SOA data_soa;
 
 	GLuint vao;
+	GLuint vbo;
+
 	// Object Transformations
 	mat4 scaleXYZ;
 	mat4 rotateX;
